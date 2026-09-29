@@ -21,7 +21,7 @@ public class Processor : FactoryBuilding
 
         hasInputBuffered = true;
         processTimer = 0f;
-        Destroy(item.gameObject); // item disappears into the machine while it's processed
+        item.Release(); // item disappears into the machine while it's processed
         return true;
     }
 
@@ -31,7 +31,6 @@ public class Processor : FactoryBuilding
 
         if (hasInputBuffered && heldItem == null && recipe != null)
         {
-            
             processTimer += Time.deltaTime * (1f + (Level - 1) * 0.25f);
             if (processTimer >= recipe.processTime)
             {
@@ -41,7 +40,4 @@ public class Processor : FactoryBuilding
             }
         }
     }
-
-   
-
 }

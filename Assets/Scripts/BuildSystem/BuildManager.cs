@@ -7,8 +7,9 @@ using UnityEngine.InputSystem;
 /// Controls:
 ///   Left click a toolbar button  - select that building to place
 ///   Move mouse                   - ghost preview snaps to the grid (green = valid, red = blocked)
-///   R                            - rotate the ghost/placement direction clockwise
+///   R                            - rotate the ghost/placement direction clockwise (disables auto-connect)
 ///   Left click on the grid       - place the building (spends money)
+///   Left click + drag            - place a building on every cell you drag over
 ///   Right click / Escape         - cancel placement
 ///   Right click + hold (1 sec)   - delete a placed building
 ///   R (while hovering building)  - rotate an already placed building
@@ -29,6 +30,9 @@ public class BuildManager : MonoBehaviour
     private GameObject ghost;
     private SpriteRenderer ghostRenderer;
     private Direction currentFacing = Direction.Right;
+    private bool facingManuallySet;
+    private bool isDragging;
+    private Vector2Int lastDragCell;
     private Camera mainCamera;
 
     private FactoryBuilding rightClickTarget;
@@ -56,6 +60,7 @@ public class BuildManager : MonoBehaviour
             if (IsPlacing)
             {
                 currentFacing = DirectionUtil.RotateClockwise(currentFacing);
+                facingManuallySet = true;
             }
             else
             {
@@ -70,15 +75,51 @@ public class BuildManager : MonoBehaviour
         UpdateGhost(cell);
 
         bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-        bool cellFree = !GridManager.Instance.IsOccupied(cell);
 
-        if (!overUI && cellFree && mouse.leftButton.wasPressedThisFrame)
-            PlaceBuilding(cell);
+        // Only start a drag if the press began over the world, not over the toolbar/inspector.
+        if (mouse.leftButton.wasPressedThisFrame && !overUI)
+        {
+            isDragging = true;
+            lastDragCell = cell;
+            if (!GridManager.Instance.IsOccupied(cell) && !PlaceBuilding(cell))
+                isDragging = false; // couldn't afford it
+        }
+        else if (isDragging && mouse.leftButton.isPressed)
+        {
+            DragTo(cell);
+        }
+
+        if (!mouse.leftButton.isPressed) isDragging = false;
 
         bool cancelPressed = mouse.rightButton.wasPressedThisFrame
                              || (keyboard != null && keyboard.escapeKey.wasPressedThisFrame);
         if (cancelPressed)
             CancelPlacement();
+    }
+
+    /// <summary>
+    /// Walks from the last cell to the target one step at a time (no diagonals,
+    /// so belts stay connected) and places a building on each free cell.
+    /// </summary>
+    private void DragTo(Vector2Int target)
+    {
+        Vector2Int c = lastDragCell;
+        while (c != target)
+        {
+            int dx = target.x - c.x;
+            int dy = target.y - c.y;
+            if (Mathf.Abs(dx) >= Mathf.Abs(dy)) c.x += (int)Mathf.Sign(dx);
+            else c.y += (int)Mathf.Sign(dy);
+
+            lastDragCell = c;
+            if (GridManager.Instance.IsOccupied(c)) continue;
+
+            if (!PlaceBuilding(c))
+            {
+                isDragging = false; // out of money (or invalid definition): stop the drag
+                return;
+            }
+        }
     }
 
     private void HandleRotatePlacedBuilding(Mouse mouse)
@@ -140,22 +181,150 @@ public class BuildManager : MonoBehaviour
         if (index < 0 || index >= availableBuildings.Count) return;
         selectedDefinition = availableBuildings[index];
         currentFacing = Direction.Right;
+        facingManuallySet = false;
         EnsureGhost();
     }
 
-    private void PlaceBuilding(Vector2Int cell)
+    private bool PlaceBuilding(Vector2Int cell)
     {
-        if (selectedDefinition == null || selectedDefinition.prefab == null) return;
+        if (selectedDefinition == null || selectedDefinition.prefab == null) return false;
         if (EconomyManager.Instance == null || !EconomyManager.Instance.TrySpend(selectedDefinition.buildCost))
-            return;
+            return false;
 
-        FactoryBuilding instance = Instantiate(selectedDefinition.prefab);
-        instance.Initialize(cell, currentFacing, selectedDefinition);
+        FactoryBuilding prefab = selectedDefinition.prefab;
+        Direction facing = currentFacing;
+
+        if (!facingManuallySet)
+        {
+            if ((prefab is ConveyorBelt)) AutoConnectNeighbors(cell); // only things that accept input get fed
+            if (!(prefab is Seller || prefab is Processor)) facing = ResolveFacing(cell, currentFacing);
+        }
+
+        FactoryBuilding instance = Instantiate(prefab);
+        instance.Initialize(cell, facing, selectedDefinition);
+        return true;
     }
+
+    // ---------------------------------------------------------------
+    // Auto-connect
+    // ---------------------------------------------------------------
+
+    private static readonly Direction[] AllDirections =
+        { Direction.Up, Direction.Right, Direction.Down, Direction.Left };
+
+    private static Direction Opposite(Direction d) => (Direction)(((int)d + 2) % 4);
+    private static bool CanOutput(FactoryBuilding b) => !(b is Seller);
+    private static bool CanAccept(FactoryBuilding b) => !(b is Miner);
+
+    /// <summary>
+    /// Any neighbor whose output points at an empty cell turns to face the
+    /// building about to be placed at 'cell'.
+    /// </summary>
+    private void AutoConnectNeighbors(Vector2Int cell)
+    {
+        var grid = GridManager.Instance;
+        foreach (Direction dir in AllDirections)
+        {
+            FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(dir));
+            if (n == null || !CanOutput(n)) continue;
+
+            // Already connected to something? Leave it alone.
+            if (grid.IsOccupied(n.GridPosition + DirectionUtil.ToVector(n.Facing))) continue;
+
+            // 'cell' is behind n (n faces directly away from it): that's n's input
+            // side, so don't flip n around to face it.
+            if (n.Facing == dir) continue;
+
+            Direction towardNew = Opposite(dir);
+            if (n.Facing != towardNew) n.SetDirection(towardNew);
+        }
+    }
+
+    /// <summary>
+    /// Picks the facing for a new building: straight into a receiver if fed by
+    /// a belt, else toward any receiver, else continue the feeder's direction,
+    /// else keep the default.
+    /// </summary>
+    private Direction ResolveFacing(Vector2Int cell, Direction fallback)
+    {
+        var grid = GridManager.Instance;
+
+        Direction? feederFacing = null;
+        Direction? anyReceiver = null;
+
+        foreach (Direction dir in AllDirections)
+        {
+            FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(dir));
+            if (n == null) continue;
+
+            bool feedsUs = CanOutput(n) && n.GridPosition + DirectionUtil.ToVector(n.Facing) == cell;
+            if (feedsUs)
+            {
+                feederFacing = n.Facing;
+            }
+            else if (CanAccept(n) && anyReceiver == null)
+            {
+                anyReceiver = dir;
+            }
+        }
+
+        // Prefer going straight through if there's a receiver right ahead.
+        if (feederFacing.HasValue)
+        {
+            var ahead = cell + DirectionUtil.ToVector(feederFacing.Value);
+            var aheadBuilding = grid.GetBuilding(ahead);
+            if (aheadBuilding != null && CanAccept(aheadBuilding)) return feederFacing.Value;
+        }
+
+        if (anyReceiver.HasValue) return anyReceiver.Value;
+        if (feederFacing.HasValue) return feederFacing.Value;
+        return fallback;
+    }
+
+    /// <summary>
+    /// Called after a building is removed. Any neighbor that was outputting into
+    /// the now-empty cell turns toward another adjacent receiver, if there is one.
+    /// </summary>
+    public void OnBuildingRemoved(Vector2Int removedCell)
+    {
+        var grid = GridManager.Instance;
+        foreach (Direction dir in AllDirections)
+        {
+            FactoryBuilding n = grid.GetBuilding(removedCell + DirectionUtil.ToVector(dir));
+            if (n == null || !CanOutput(n)) continue;
+
+            // Only care about neighbors that were pointing at the removed cell.
+            if (n.GridPosition + DirectionUtil.ToVector(n.Facing) != removedCell) continue;
+
+            Direction? best = null;
+            foreach (Direction d in AllDirections)
+            {
+                Vector2Int otherCell = n.GridPosition + DirectionUtil.ToVector(d);
+                if (otherCell == removedCell) continue;
+
+                FactoryBuilding r = grid.GetBuilding(otherCell);
+                if (r == null || !CanAccept(r)) continue;
+
+                // Skip buildings that are feeding n, or we'd create a loop.
+                if (CanOutput(r) && r.GridPosition + DirectionUtil.ToVector(r.Facing) == n.GridPosition) continue;
+
+                best = d;
+                break;
+            }
+
+            if (best.HasValue) n.SetDirection(best.Value);
+            // else: leave it dangling; placing a new building there auto-connects again.
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Ghost
+    // ---------------------------------------------------------------
 
     private void CancelPlacement()
     {
         selectedDefinition = null;
+        isDragging = false;
         if (ghost != null) Destroy(ghost);
     }
 

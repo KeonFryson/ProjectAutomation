@@ -11,11 +11,13 @@ public class Seller : FactoryBuilding
     {
         if (item == null || item.Definition == null) return false;
 
-        int value = item.Definition.sellValue * (1 + (Level - 1)); // upgrades increase payout
+        // Read everything we need BEFORE releasing: Release() clears Definition.
+        ItemDefinition def = item.Definition;
+        int value = def.sellValue * (1 + (Level - 1)); // upgrades increase payout
         if (EconomyManager.Instance != null) EconomyManager.Instance.AddMoney(value);
 
-        SellBurstEffect.Spawn(transform.position, item.Definition.color);
-        Destroy(item.gameObject);
+        SellBurstEffect.Spawn(transform.position, def.color);
+        item.Release();
         return true;
     }
 }

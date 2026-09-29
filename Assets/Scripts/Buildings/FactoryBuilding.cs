@@ -30,6 +30,7 @@ public abstract class FactoryBuilding : MonoBehaviour
     protected float moveProgress;
     private SpriteRenderer demolishOverlay;
     private float demolishProgress;
+
     // Where a traveling item appears when it starts crossing this tile.
     protected virtual Vector3 EntryLocalOffset => Vector3.zero;
 
@@ -77,6 +78,10 @@ public abstract class FactoryBuilding : MonoBehaviour
         indicatorSr.sprite = SquareSpriteFactory.GetSquareSprite();
         indicatorSr.color = new Color(1f, 1f, 1f, 0.9f);
         indicatorSr.sortingOrder = 2;
+
+        // Remove any previous overlay so repeated rotations don't leak children.
+        var oldOverlay = transform.Find("DemolishOverlay");
+        if (oldOverlay != null) Destroy(oldOverlay.gameObject);
 
         var overlayGo = new GameObject("DemolishOverlay");
         overlayGo.transform.SetParent(transform, false);
@@ -184,9 +189,13 @@ public abstract class FactoryBuilding : MonoBehaviour
 
     public virtual void Demolish()
     {
-        GridManager.Instance.Unregister(GridPosition);
-        if (heldItem != null) Destroy(heldItem.gameObject);
+        Vector2Int cell = GridPosition;
+        GridManager.Instance.Unregister(cell);
+        if (heldItem != null) { heldItem.Release(); heldItem = null; }
         Destroy(gameObject);
+
+        // Let neighbors re-route now that this cell is empty.
+        if (BuildManager.Instance != null) BuildManager.Instance.OnBuildingRemoved(cell);
     }
 
     // Unity automatically calls this on the object under the mouse when it has
