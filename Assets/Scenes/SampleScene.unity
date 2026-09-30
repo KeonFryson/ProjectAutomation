@@ -389,7 +389,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f6e0ab38d35ee394983166b19c5dc772, type: 2}
   - {fileID: 11400000, guid: 62f181504a0cd1c4883c2e25a8a50c48, type: 2}
   - {fileID: 11400000, guid: bce682ed3b500e6429ad96d3abf9ca80, type: 2}
-  deletionHoldTime: 1
+  deletionHoldTime: 0.3
 --- !u!114 &1962065047
 MonoBehaviour:
   m_ObjectHideFlags: 0

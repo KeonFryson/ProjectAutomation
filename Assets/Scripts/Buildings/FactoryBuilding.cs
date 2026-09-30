@@ -12,8 +12,7 @@ using UnityEngine;
 ///    this building is facing.
 ///  - Upgrading (faster) and demolishing.
 ///
-/// Subclasses override TryAcceptInput to decide whether/how they accept items,
-/// and can override Update to add their own behaviour (e.g. generating items).
+/// Clicking a building is handled by BuildManager (grid lookup), not here.
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
 public abstract class FactoryBuilding : MonoBehaviour
@@ -79,17 +78,17 @@ public abstract class FactoryBuilding : MonoBehaviour
         indicatorSr.color = new Color(1f, 1f, 1f, 0.9f);
         indicatorSr.sortingOrder = 2;
 
-        // Remove any previous overlay so repeated rotations don't leak children.
-        var oldOverlay = transform.Find("DemolishOverlay");
-        if (oldOverlay != null) Destroy(oldOverlay.gameObject);
-
-        var overlayGo = new GameObject("DemolishOverlay");
-        overlayGo.transform.SetParent(transform, false);
-        overlayGo.transform.localScale = Vector3.zero;
-        demolishOverlay = overlayGo.AddComponent<SpriteRenderer>();
-        demolishOverlay.sprite = SquareSpriteFactory.GetSquareSprite();
-        demolishOverlay.color = new Color(1f, 0.15f, 0.15f, 0.65f);
-        demolishOverlay.sortingOrder = 3;
+        // Only create the demolish overlay once (SetDirection calls this again).
+        if (demolishOverlay == null)
+        {
+            var overlayGo = new GameObject("DemolishOverlay");
+            overlayGo.transform.SetParent(transform, false);
+            overlayGo.transform.localScale = Vector3.zero;
+            demolishOverlay = overlayGo.AddComponent<SpriteRenderer>();
+            demolishOverlay.sprite = SquareSpriteFactory.GetSquareSprite();
+            demolishOverlay.color = new Color(1f, 0.15f, 0.15f, 0.65f);
+            demolishOverlay.sortingOrder = 3;
+        }
     }
 
     protected virtual void Update()
@@ -196,13 +195,5 @@ public abstract class FactoryBuilding : MonoBehaviour
 
         // Let neighbors re-route now that this cell is empty.
         if (BuildManager.Instance != null) BuildManager.Instance.OnBuildingRemoved(cell);
-    }
-
-    // Unity automatically calls this on the object under the mouse when it has
-    // a Collider2D and the scene has a camera — no EventSystem/raycaster needed.
-    void OnMouseDown()
-    {
-        if (BuildManager.Instance != null && BuildManager.Instance.IsPlacing) return;
-        if (UIManager.Instance != null) UIManager.Instance.ShowInspector(this);
     }
 }

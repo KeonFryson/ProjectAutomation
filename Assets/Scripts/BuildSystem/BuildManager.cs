@@ -5,11 +5,13 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// Controls:
-///   Left click a toolbar button  - select that building to place
+///   Q                            - open/close the build menu
+///   Left click a menu icon       - select that building to place
 ///   Move mouse                   - ghost preview snaps to the grid (green = valid, red = blocked)
 ///   R                            - rotate the ghost/placement direction clockwise (disables auto-connect)
 ///   Left click on the grid       - place the building (spends money)
 ///   Left click + drag            - place a building on every cell you drag over
+///   Left click on a building     - open its inspector (when not placing)
 ///   Right click / Escape         - cancel placement
 ///   Right click + hold (1 sec)   - delete a placed building
 ///   R (while hovering building)  - rotate an already placed building
@@ -18,7 +20,7 @@ public class BuildManager : MonoBehaviour
 {
     public static BuildManager Instance { get; private set; }
 
-    [Tooltip("All building types the player can construct, shown as toolbar buttons in this order.")]
+    [Tooltip("All building types the player can construct, shown as icons in the build menu.")]
     public List<BuildingDefinition> availableBuildings = new List<BuildingDefinition>();
 
     [Tooltip("Time in seconds to hold right click for deletion.")]
@@ -68,6 +70,10 @@ public class BuildManager : MonoBehaviour
             }
         }
 
+        // Click a placed building to open its inspector (only when not placing)
+        if (!IsPlacing && mouse.leftButton.wasPressedThisFrame)
+            HandleSelectBuilding(mouse);
+
         if (!IsPlacing) return;
 
         Vector3 mouseWorld = GetMouseWorldPosition(mouse);
@@ -76,7 +82,7 @@ public class BuildManager : MonoBehaviour
 
         bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
-        // Only start a drag if the press began over the world, not over the toolbar/inspector.
+        // Only start a drag if the press began over the world, not over the menu/inspector.
         if (mouse.leftButton.wasPressedThisFrame && !overUI)
         {
             isDragging = true;
@@ -95,6 +101,22 @@ public class BuildManager : MonoBehaviour
                              || (keyboard != null && keyboard.escapeKey.wasPressedThisFrame);
         if (cancelPressed)
             CancelPlacement();
+    }
+
+    private void HandleSelectBuilding(Mouse mouse)
+    {
+        // Ignore clicks on UI (buttons, panels) and while the build menu is open
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+        if (UIManager.Instance == null) return;
+        if (UIManager.Instance.IsBuildMenuOpen) return;
+
+        Vector2Int cell = GridManager.Instance.WorldToGrid(GetMouseWorldPosition(mouse));
+        FactoryBuilding building = GridManager.Instance.GetBuilding(cell);
+
+        if (building != null)
+            UIManager.Instance.ShowInspector(building);
+        else
+            UIManager.Instance.HideInspector(); // clicking empty ground closes the panel
     }
 
     /// <summary>
@@ -196,7 +218,7 @@ public class BuildManager : MonoBehaviour
 
         if (!facingManuallySet)
         {
-            if ((prefab is ConveyorBelt)) AutoConnectNeighbors(cell); // only things that accept input get fed
+            if (prefab is ConveyorBelt) AutoConnectNeighbors(cell); // only things that accept input get fed
             if (!(prefab is Seller || prefab is Processor)) facing = ResolveFacing(cell, currentFacing);
         }
 
