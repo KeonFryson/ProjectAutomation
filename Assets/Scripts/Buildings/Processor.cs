@@ -20,6 +20,21 @@ public class Processor : FactoryBuilding
     private float processTimer;
     private RecipeDefinition activeRecipe;
 
+    // ---- Read-only state for the machine window ----
+
+    /// <summary>The item currently inside the machine being processed (null if idle).</summary>
+    public ItemDefinition InputItem =>
+        hasInputBuffered && activeRecipe != null ? activeRecipe.inputItem : null;
+
+    /// <summary>The recipe currently running (null if idle).</summary>
+    public RecipeDefinition ActiveRecipe => hasInputBuffered ? activeRecipe : null;
+
+    /// <summary>0..1 progress of the current recipe.</summary>
+    public float Progress01 =>
+        hasInputBuffered && activeRecipe != null && activeRecipe.processTime > 0f
+            ? Mathf.Clamp01(processTimer / activeRecipe.processTime)
+            : 0f;
+
     /// <summary>Finds the recipe that consumes the given item, or null.</summary>
     public RecipeDefinition FindRecipe(ItemDefinition input)
     {
@@ -32,7 +47,7 @@ public class Processor : FactoryBuilding
         return null;
     }
 
-    /// <summary>Every recipe this machine knows (used by the inspector UI).</summary>
+    /// <summary>Every recipe this machine knows (used by the machine window).</summary>
     public IEnumerable<RecipeDefinition> GetAllRecipes()
     {
         foreach (var r in recipes)

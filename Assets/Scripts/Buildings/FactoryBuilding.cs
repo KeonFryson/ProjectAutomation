@@ -36,7 +36,8 @@ public abstract class FactoryBuilding : MonoBehaviour
     // Where a traveling item ends up, at the edge it will be pushed out from.
     protected virtual Vector3 ExitLocalOffset =>
         (Vector3)(Vector2)DirectionUtil.ToVector(Facing) * 0.5f;
-
+    /// <summary>The item this building is currently holding/carrying (null if none).</summary>
+    public ItemDefinition HeldItemDefinition => heldItem != null ? heldItem.Definition : null;
     /// <summary>
     /// Called once, right after Instantiate, by BuildManager.
     /// </summary>

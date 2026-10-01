@@ -6,21 +6,25 @@ using UnityEngine;
 /// with no input required (e.g. a Miner pulling Ore out of the ground).
 /// Never accepts input from other buildings.
 ///
-/// The player picks what it mines from the inspector panel (click the miner).
+/// The player picks what it mines from the machine window (click the miner).
 /// The choices come from availableItems.
 /// </summary>
 public class Miner : FactoryBuilding
 {
-    [Tooltip("The raw item this miner currently produces (e.g. Iron Ore). Changed at runtime from the inspector UI.")]
+    [Tooltip("The raw item this miner currently produces (e.g. Iron Ore). Changed at runtime from the machine window.")]
     public ItemDefinition producedItem;
 
-    [Tooltip("All items the player can choose from in this miner's menu (Iron Ore, Copper Ore, ...).")]
+    [Tooltip("All items the player can choose from in this miner's window (Iron Ore, Copper Ore, ...).")]
     public List<ItemDefinition> availableItems = new List<ItemDefinition>();
 
     [Tooltip("Seconds between each item produced, at level 1.")]
     public float productionInterval = 2f;
 
     private float timer;
+
+    /// <summary>0..1 progress toward the next item (used by the machine window).</summary>
+    public float Progress01 =>
+        productionInterval > 0f ? Mathf.Clamp01(timer / productionInterval) : 0f;
 
     void Start()
     {
