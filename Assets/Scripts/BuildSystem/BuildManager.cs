@@ -6,27 +6,29 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// Controls:
 ///   Q                            - open/close the build menu
-///   Left click a menu icon       - select that building to place
+///   T                            - open/close the tech tree
+///   1-9                          - pick a building from the hotbar
 ///   Move mouse                   - ghost preview snaps to the grid (green = valid, red = blocked)
-///   R                            - rotate the ghost/placement direction clockwise (disables auto-connect)
+///   R                            - rotate the ghost / hovered building clockwise
 ///   Left click on the grid       - place the building (spends money)
-///   Left click + drag            - place a building on every cell you drag over
-///   Left click on a building     - open its inspector (when not placing)
+///   Left click + drag            - (1x1 buildings) place on every cell you drag over
+///   Left click on a building     - open its window (when not placing)
 ///   Right click / Escape         - cancel placement
 ///   Right click + hold (1 sec)   - delete a placed building
-///   R (while hovering building)  - rotate an already placed building
+/// Buildings larger than 1x1 are placed with the mouse over their center cell.
 /// </summary>
 public class BuildManager : MonoBehaviour
 {
     public static BuildManager Instance { get; private set; }
 
-    [Tooltip("All building types the player can construct, shown as icons in the build menu.")]
+    [Tooltip("All building types in the game. Only unlocked ones show up in the menu/hotbar.")]
     public List<BuildingDefinition> availableBuildings = new List<BuildingDefinition>();
 
     [Tooltip("Time in seconds to hold right click for deletion.")]
     public float deletionHoldTime = 1f;
 
     public bool IsPlacing => selectedDefinition != null;
+    public BuildingDefinition SelectedDefinition => selectedDefinition;
 
     private BuildingDefinition selectedDefinition;
     private GameObject ghost;
@@ -36,6 +38,7 @@ public class BuildManager : MonoBehaviour
     private bool isDragging;
     private Vector2Int lastDragCell;
     private Camera mainCamera;
+    private readonly List<Vector2Int> tmpCells = new List<Vector2Int>();
 
     private FactoryBuilding rightClickTarget;
     private float rightClickHoldTimer;
@@ -46,6 +49,9 @@ public class BuildManager : MonoBehaviour
         mainCamera = Camera.main;
     }
 
+    private Vector2Int SelectedSize =>
+        selectedDefinition != null ? Footprint.ClampSize(selectedDefinition.size) : Vector2Int.one;
+
     void Update()
     {
         Mouse mouse = Mouse.current;
@@ -53,10 +59,8 @@ public class BuildManager : MonoBehaviour
 
         Keyboard keyboard = Keyboard.current;
 
-        // Handle right-click deletion on placed buildings
         HandleDeletionInput(mouse);
 
-        // Handle R key for rotating placed buildings (even when not placing)
         if (keyboard != null && keyboard.rKey.wasPressedThisFrame)
         {
             if (IsPlacing)
@@ -70,29 +74,29 @@ public class BuildManager : MonoBehaviour
             }
         }
 
-        // Click a placed building to open its inspector (only when not placing)
         if (!IsPlacing && mouse.leftButton.wasPressedThisFrame)
             HandleSelectBuilding(mouse);
 
         if (!IsPlacing) return;
 
         Vector3 mouseWorld = GetMouseWorldPosition(mouse);
-        Vector2Int cell = GridManager.Instance.WorldToGrid(mouseWorld);
-        UpdateGhost(cell);
+        Vector2Int cursorCell = GridManager.Instance.WorldToGrid(mouseWorld);
+        Vector2Int anchor = Footprint.AnchorFromCenter(cursorCell, SelectedSize, currentFacing);
+        UpdateGhost(anchor);
 
         bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+        bool single = SelectedSize == Vector2Int.one;
 
-        // Only start a drag if the press began over the world, not over the menu/inspector.
         if (mouse.leftButton.wasPressedThisFrame && !overUI)
         {
-            isDragging = true;
-            lastDragCell = cell;
-            if (!GridManager.Instance.IsOccupied(cell) && !PlaceBuilding(cell))
+            isDragging = single; // only 1x1 buildings can be drag-placed
+            lastDragCell = cursorCell;
+            if (CanPlace(anchor) && !PlaceBuilding(anchor))
                 isDragging = false; // couldn't afford it
         }
         else if (isDragging && mouse.leftButton.isPressed)
         {
-            DragTo(cell);
+            DragTo(cursorCell);
         }
 
         if (!mouse.leftButton.isPressed) isDragging = false;
@@ -105,10 +109,9 @@ public class BuildManager : MonoBehaviour
 
     private void HandleSelectBuilding(Mouse mouse)
     {
-        // Ignore clicks on UI (buttons, panels) and while the build menu is open
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
         if (UIManager.Instance == null) return;
-        if (UIManager.Instance.IsBuildMenuOpen) return;
+        if (UIManager.Instance.IsMenuOpen) return;
 
         Vector2Int cell = GridManager.Instance.WorldToGrid(GetMouseWorldPosition(mouse));
         FactoryBuilding building = GridManager.Instance.GetBuilding(cell);
@@ -116,13 +119,10 @@ public class BuildManager : MonoBehaviour
         if (building != null)
             UIManager.Instance.ShowInspector(building);
         else
-            UIManager.Instance.HideInspector(); // clicking empty ground closes the panel
+            UIManager.Instance.HideInspector();
     }
 
-    /// <summary>
-    /// Walks from the last cell to the target one step at a time (no diagonals,
-    /// so belts stay connected) and places a building on each free cell.
-    /// </summary>
+    /// <summary>Single-cell drag placement: steps one cell at a time so belts stay connected.</summary>
     private void DragTo(Vector2Int target)
     {
         Vector2Int c = lastDragCell;
@@ -138,7 +138,7 @@ public class BuildManager : MonoBehaviour
 
             if (!PlaceBuilding(c))
             {
-                isDragging = false; // out of money (or invalid definition): stop the drag
+                isDragging = false;
                 return;
             }
         }
@@ -146,14 +146,10 @@ public class BuildManager : MonoBehaviour
 
     private void HandleRotatePlacedBuilding(Mouse mouse)
     {
-        Vector3 mouseWorld = GetMouseWorldPosition(mouse);
-        Vector2Int cell = GridManager.Instance.WorldToGrid(mouseWorld);
+        Vector2Int cell = GridManager.Instance.WorldToGrid(GetMouseWorldPosition(mouse));
         FactoryBuilding building = GridManager.Instance.GetBuilding(cell);
-
         if (building != null)
-        {
             building.SetDirection(DirectionUtil.RotateClockwise(building.GetDirection()));
-        }
     }
 
     private void HandleDeletionInput(Mouse mouse)
@@ -170,7 +166,6 @@ public class BuildManager : MonoBehaviour
 
             if (rightClickTarget != null)
             {
-                // Update the overlay progress based on hold duration
                 float progress = rightClickHoldTimer / deletionHoldTime;
                 rightClickTarget.SetDemolishProgress(progress);
 
@@ -183,11 +178,7 @@ public class BuildManager : MonoBehaviour
         }
         else
         {
-            // Clear overlay when not holding
-            if (rightClickTarget != null)
-            {
-                rightClickTarget.SetDemolishProgress(0f);
-            }
+            if (rightClickTarget != null) rightClickTarget.SetDemolishProgress(0f);
             ResetDeletionState();
         }
     }
@@ -201,60 +192,67 @@ public class BuildManager : MonoBehaviour
     public void SelectBuildingToPlace(int index)
     {
         if (index < 0 || index >= availableBuildings.Count) return;
-        selectedDefinition = availableBuildings[index];
+        var def = availableBuildings[index];
+        if (!ResearchManager.IsBuildingUnlocked(def)) return;
+
+        selectedDefinition = def;
         currentFacing = Direction.Right;
         facingManuallySet = false;
         EnsureGhost();
     }
 
-    private bool PlaceBuilding(Vector2Int cell)
+    private bool CanPlace(Vector2Int anchor)
+    {
+        Footprint.GetCells(anchor, SelectedSize, currentFacing, tmpCells);
+        foreach (var c in tmpCells)
+            if (GridManager.Instance.IsOccupied(c)) return false;
+        return true;
+    }
+
+    /// <summary>Assumes CanPlace(anchor) was checked. Returns false if the player can't pay.</summary>
+    private bool PlaceBuilding(Vector2Int anchor)
     {
         if (selectedDefinition == null || selectedDefinition.prefab == null) return false;
+        if (!ResearchManager.IsBuildingUnlocked(selectedDefinition)) return false;
         if (EconomyManager.Instance == null || !EconomyManager.Instance.TrySpend(selectedDefinition.buildCost))
             return false;
 
         FactoryBuilding prefab = selectedDefinition.prefab;
         Direction facing = currentFacing;
+        bool single = SelectedSize == Vector2Int.one;
 
-        if (!facingManuallySet)
+        // Auto-facing only makes sense for single tiles; bigger machines use the ghost's rotation.
+        if (!facingManuallySet && single)
         {
-            if (prefab is ConveyorBelt) AutoConnectNeighbors(cell); // only things that accept input get fed
-            if (!(prefab is Seller || prefab is Processor)) facing = ResolveFacing(cell, currentFacing);
+            if (prefab is ConveyorBelt) AutoConnectNeighbors(anchor);
+            if (prefab.HasOutput && !(prefab is Processor)) facing = ResolveFacing(anchor, currentFacing);
         }
 
         FactoryBuilding instance = Instantiate(prefab);
-        instance.Initialize(cell, facing, selectedDefinition);
+        instance.Initialize(anchor, facing, selectedDefinition);
         return true;
     }
 
     // ---------------------------------------------------------------
-    // Auto-connect
+    // Auto-connect (single-cell buildings only get rotated automatically)
     // ---------------------------------------------------------------
 
     private static readonly Direction[] AllDirections =
         { Direction.Up, Direction.Right, Direction.Down, Direction.Left };
 
     private static Direction Opposite(Direction d) => (Direction)(((int)d + 2) % 4);
-    private static bool CanOutput(FactoryBuilding b) => !(b is Seller);
-    private static bool CanAccept(FactoryBuilding b) => !(b is Miner);
+    private static bool CanOutput(FactoryBuilding b) => b.HasOutput;
+    private static bool CanAccept(FactoryBuilding b) => b.HasInput;
 
-    /// <summary>
-    /// Any neighbor whose output points at an empty cell turns to face the
-    /// building about to be placed at 'cell'.
-    /// </summary>
     private void AutoConnectNeighbors(Vector2Int cell)
     {
         var grid = GridManager.Instance;
         foreach (Direction dir in AllDirections)
         {
             FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(dir));
-            if (n == null || !CanOutput(n)) continue;
+            if (n == null || !CanOutput(n) || !n.IsSingleCell) continue;
 
-            // Already connected to something? Leave it alone.
-            if (grid.IsOccupied(n.GridPosition + DirectionUtil.ToVector(n.Facing))) continue;
-
-            // 'cell' is behind n (n faces directly away from it): that's n's input
-            // side, so don't flip n around to face it.
+            if (grid.IsOccupied(n.OutputCell)) continue;
             if (n.Facing == dir) continue;
 
             Direction towardNew = Opposite(dir);
@@ -262,11 +260,6 @@ public class BuildManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Picks the facing for a new building: straight into a receiver if fed by
-    /// a belt, else toward any receiver, else continue the feeder's direction,
-    /// else keep the default.
-    /// </summary>
     private Direction ResolveFacing(Vector2Int cell, Direction fallback)
     {
         var grid = GridManager.Instance;
@@ -279,18 +272,11 @@ public class BuildManager : MonoBehaviour
             FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(dir));
             if (n == null) continue;
 
-            bool feedsUs = CanOutput(n) && n.GridPosition + DirectionUtil.ToVector(n.Facing) == cell;
-            if (feedsUs)
-            {
-                feederFacing = n.Facing;
-            }
-            else if (CanAccept(n) && anyReceiver == null)
-            {
-                anyReceiver = dir;
-            }
+            bool feedsUs = CanOutput(n) && n.OutputCell == cell;
+            if (feedsUs) feederFacing = n.Facing;
+            else if (CanAccept(n) && anyReceiver == null) anyReceiver = dir;
         }
 
-        // Prefer going straight through if there's a receiver right ahead.
         if (feederFacing.HasValue)
         {
             var ahead = cell + DirectionUtil.ToVector(feederFacing.Value);
@@ -303,20 +289,15 @@ public class BuildManager : MonoBehaviour
         return fallback;
     }
 
-    /// <summary>
-    /// Called after a building is removed. Any neighbor that was outputting into
-    /// the now-empty cell turns toward another adjacent receiver, if there is one.
-    /// </summary>
+    /// <summary>Called for every cell freed by a demolished building.</summary>
     public void OnBuildingRemoved(Vector2Int removedCell)
     {
         var grid = GridManager.Instance;
         foreach (Direction dir in AllDirections)
         {
             FactoryBuilding n = grid.GetBuilding(removedCell + DirectionUtil.ToVector(dir));
-            if (n == null || !CanOutput(n)) continue;
-
-            // Only care about neighbors that were pointing at the removed cell.
-            if (n.GridPosition + DirectionUtil.ToVector(n.Facing) != removedCell) continue;
+            if (n == null || !CanOutput(n) || !n.IsSingleCell) continue;
+            if (n.OutputCell != removedCell) continue;
 
             Direction? best = null;
             foreach (Direction d in AllDirections)
@@ -327,15 +308,14 @@ public class BuildManager : MonoBehaviour
                 FactoryBuilding r = grid.GetBuilding(otherCell);
                 if (r == null || !CanAccept(r)) continue;
 
-                // Skip buildings that are feeding n, or we'd create a loop.
-                if (CanOutput(r) && r.GridPosition + DirectionUtil.ToVector(r.Facing) == n.GridPosition) continue;
+                // Skip buildings that feed n, or we'd create a loop.
+                if (CanOutput(r) && r.OutputCell == n.GridPosition) continue;
 
                 best = d;
                 break;
             }
 
             if (best.HasValue) n.SetDirection(best.Value);
-            // else: leave it dangling; placing a new building there auto-connects again.
         }
     }
 
@@ -343,7 +323,7 @@ public class BuildManager : MonoBehaviour
     // Ghost
     // ---------------------------------------------------------------
 
-    private void CancelPlacement()
+    public void CancelPlacement()
     {
         selectedDefinition = null;
         isDragging = false;
@@ -357,15 +337,18 @@ public class BuildManager : MonoBehaviour
         ghostRenderer = ghost.AddComponent<SpriteRenderer>();
         ghostRenderer.sprite = SquareSpriteFactory.GetSquareSprite();
         ghostRenderer.sortingOrder = 5;
-        ghost.transform.localScale = Vector3.one * 0.92f;
     }
 
-    private void UpdateGhost(Vector2Int cell)
+    private void UpdateGhost(Vector2Int anchor)
     {
         if (ghost == null) return;
-        ghost.transform.position = GridManager.Instance.GridToWorld(cell);
 
-        bool valid = !GridManager.Instance.IsOccupied(cell);
+        var grid = GridManager.Instance;
+        Vector2Int dims = Footprint.WorldSize(SelectedSize, currentFacing);
+        ghost.transform.position = Footprint.WorldCenter(anchor, SelectedSize, currentFacing, grid.cellSize);
+        ghost.transform.localScale = new Vector3(dims.x * 0.92f * grid.cellSize, dims.y * 0.92f * grid.cellSize, 1f);
+
+        bool valid = CanPlace(anchor);
         Color baseColor = selectedDefinition != null ? selectedDefinition.iconColor : Color.white;
         ghostRenderer.color = valid
             ? new Color(baseColor.r, baseColor.g, baseColor.b, 0.55f)

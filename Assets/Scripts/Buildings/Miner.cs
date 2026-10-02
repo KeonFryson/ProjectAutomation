@@ -48,7 +48,7 @@ public class Miner : FactoryBuilding
 
         if (heldItem == null && producedItem != null)
         {
-            timer += Time.deltaTime * (1f + (Level - 1) * 0.25f);
+            timer += Time.deltaTime * SpeedMultiplier;
             if (timer >= productionInterval)
             {
                 timer = 0f;

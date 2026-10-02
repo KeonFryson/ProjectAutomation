@@ -13,8 +13,12 @@ MonoBehaviour:
   m_Name: Belt
   m_EditorClassIdentifier: Assembly-CSharp::BuildingDefinition
   displayName: Belt
+  description: 
   category: Logistics
   prefab: {fileID: 4123589631156266523, guid: 2356f10daa09bc247ac3f2cc8a1259e8, type: 3}
   buildCost: 10
-  baseUpgradeCost: 15
+  size: {x: 1, y: 1}
+  speedMultiplier: 1
+  sellMultiplier: 1
+  unlockedByDefault: 1
   iconColor: {r: 0, g: 0, b: 0, a: 1}

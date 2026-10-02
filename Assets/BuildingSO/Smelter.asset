@@ -13,8 +13,12 @@ MonoBehaviour:
   m_Name: Smelter
   m_EditorClassIdentifier: Assembly-CSharp::BuildingDefinition
   displayName: Smelter
+  description: 
   category: Production
   prefab: {fileID: 1339373298306540071, guid: dd96be34dbe23d24d91a03d9c791201c, type: 3}
   buildCost: 10
-  baseUpgradeCost: 15
+  size: {x: 2, y: 3}
+  speedMultiplier: 1
+  sellMultiplier: 1
+  unlockedByDefault: 0
   iconColor: {r: 0.5943396, g: 0.27754536, b: 0.27754536, a: 1}

@@ -77,7 +77,7 @@ public class Processor : FactoryBuilding
 
         if (hasInputBuffered && heldItem == null && activeRecipe != null)
         {
-            processTimer += Time.deltaTime * (1f + (Level - 1) * 0.25f);
+            processTimer += Time.deltaTime * SpeedMultiplier;
             if (processTimer >= activeRecipe.processTime)
             {
                 hasInputBuffered = false;

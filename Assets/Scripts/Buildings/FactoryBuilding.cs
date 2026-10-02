@@ -1,85 +1,121 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Base class for every placeable thing in Box Factory: conveyor belts, miners,
-/// processors (smelters etc) and sellers all derive from this.
+/// Base class for every placeable thing in Box Factory.
 ///
-/// Responsibilities shared by everything:
-///  - Registering itself with the GridManager at its cell.
-///  - Auto-generating its own square sprite + collider (no art/prefab setup needed).
-///  - Holding at most one "in transit" item and animating it from the entry edge
-///    of this tile to the exit edge, then trying to push it onto the neighbor
-///    this building is facing.
-///  - Upgrading (faster) and demolishing.
-///
-/// Clicking a building is handled by BuildManager (grid lookup), not here.
+///  - Occupies one or more grid cells (BuildingDefinition.size).
+///  - Auto-generates its own square sprite + collider.
+///  - Holds at most one "in transit" item and moves it to the front edge,
+///    then pushes it into whatever building is in front of it (OutputCell).
+///  - Speed comes from BuildingDefinition.speedMultiplier (no paid upgrades).
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
 public abstract class FactoryBuilding : MonoBehaviour
 {
+    /// <summary>Anchor cell (for 1x1 buildings this is simply the cell).</summary>
     public Vector2Int GridPosition { get; private set; }
     public Direction Facing { get; private set; } = Direction.Right;
     public BuildingDefinition Definition { get; private set; }
-    public int Level { get; protected set; } = 1;
+    public Vector2Int Size { get; private set; } = Vector2Int.one;
 
-    [Tooltip("Tiles per second an item crosses this building at level 1.")]
+    public bool IsSingleCell => Size.x == 1 && Size.y == 1;
+    public IReadOnlyList<Vector2Int> Cells => cells;
+
+    /// <summary>The cell this building pushes items into.</summary>
+    public Vector2Int OutputCell => Footprint.OutputCell(GridPosition, Size, Facing);
+
+    /// <summary>False for buildings that never receive items (Miner).</summary>
+    public virtual bool HasInput => true;
+    /// <summary>False for buildings that never send items out (Seller, ResearchLab).</summary>
+    public virtual bool HasOutput => true;
+
+    public float SpeedMultiplier =>
+        Definition != null ? Mathf.Max(0.01f, Definition.speedMultiplier) : 1f;
+
+    [Tooltip("Tiles per second an item crosses this building (multiplied by the definition's speedMultiplier).")]
     public float itemTravelSpeed = 2f;
 
     protected ItemVisual heldItem;
     protected float moveProgress;
+
+    private readonly List<Vector2Int> cells = new List<Vector2Int>();
+    private Transform indicator;
     private SpriteRenderer demolishOverlay;
     private float demolishProgress;
+    private Vector2 footprintWorldSize = Vector2.one;
 
-    // Where a traveling item appears when it starts crossing this tile.
+    // Where a traveling item appears when it starts crossing this building.
     protected virtual Vector3 EntryLocalOffset => Vector3.zero;
 
-    // Where a traveling item ends up, at the edge it will be pushed out from.
-    protected virtual Vector3 ExitLocalOffset =>
-        (Vector3)(Vector2)DirectionUtil.ToVector(Facing) * 0.5f;
+    // Where a traveling item ends up: the middle of the front edge.
+    protected virtual Vector3 ExitLocalOffset
+    {
+        get
+        {
+            var grid = GridManager.Instance;
+            Vector2Int f = DirectionUtil.ToVector(Facing);
+            Vector3 frontCell = grid.GridToWorld(OutputCell - f);
+            return frontCell + new Vector3(f.x, f.y, 0f) * (0.5f * grid.cellSize) - transform.position;
+        }
+    }
+
     /// <summary>The item this building is currently holding/carrying (null if none).</summary>
     public ItemDefinition HeldItemDefinition => heldItem != null ? heldItem.Definition : null;
-    /// <summary>
-    /// Called once, right after Instantiate, by BuildManager.
-    /// </summary>
-    public void Initialize(Vector2Int gridPos, Direction facing, BuildingDefinition definition)
+
+    /// <summary>Called once, right after Instantiate, by BuildManager.</summary>
+    public void Initialize(Vector2Int anchor, Direction facing, BuildingDefinition definition)
     {
-        GridPosition = gridPos;
+        GridPosition = anchor;
         Facing = facing;
         Definition = definition;
+        Size = definition != null ? Footprint.ClampSize(definition.size) : Vector2Int.one;
+        Footprint.GetCells(anchor, Size, facing, cells);
 
-        transform.position = GridManager.Instance.GridToWorld(gridPos);
-        transform.rotation = Quaternion.identity; // sprite itself doesn't need to rotate, it's a square
-
+        transform.rotation = Quaternion.identity;
         SetupVisuals();
-        GridManager.Instance.Register(gridPos, this);
+
+        foreach (var c in cells) GridManager.Instance.Register(c, this);
     }
 
     private void SetupVisuals()
     {
+        var grid = GridManager.Instance;
+        float cs = grid.cellSize;
+
+        Vector2Int worldDims = Footprint.WorldSize(Size, Facing);
+        footprintWorldSize = new Vector2(worldDims.x, worldDims.y) * cs;
+        transform.position = Footprint.WorldCenter(GridPosition, Size, Facing, cs);
+        transform.localScale = Vector3.one;
+
         var sr = GetComponent<SpriteRenderer>();
         sr.sprite = SquareSpriteFactory.GetSquareSprite();
+        sr.drawMode = SpriteDrawMode.Tiled; // stretches the flat square over the whole footprint
+        sr.tileMode = SpriteTileMode.Continuous;
+        sr.size = footprintWorldSize;
         sr.color = Definition != null ? Definition.iconColor : Color.white;
         sr.sortingOrder = 1;
-        transform.localScale = Vector3.one;
 
         var collider = GetComponent<BoxCollider2D>();
         if (collider == null) collider = gameObject.AddComponent<BoxCollider2D>();
-        collider.size = Vector2.one;
+        collider.size = footprintWorldSize;
+        collider.offset = Vector2.zero;
 
-        // Small bright square offset toward the facing edge, purely so the
-        // player can see which way this building points.
-        if (transform.Find("FacingIndicator") != null) Destroy(transform.Find("FacingIndicator").gameObject);
-        var indicator = new GameObject("FacingIndicator");
-        indicator.transform.SetParent(transform, false);
-        indicator.transform.localScale = new Vector3(0.28f, 0.28f, 1f);
-        Vector2 dir = DirectionUtil.ToVector(Facing);
-        indicator.transform.localPosition = new Vector3(dir.x, dir.y, 0f) * 0.36f;
-        var indicatorSr = indicator.AddComponent<SpriteRenderer>();
-        indicatorSr.sprite = SquareSpriteFactory.GetSquareSprite();
-        indicatorSr.color = new Color(1f, 1f, 1f, 0.9f);
-        indicatorSr.sortingOrder = 2;
+        // Small bright square on the front edge showing which way this points.
+        if (indicator == null)
+        {
+            var go = new GameObject("FacingIndicator");
+            go.transform.SetParent(transform, false);
+            go.transform.localScale = new Vector3(0.28f, 0.28f, 1f);
+            var isr = go.AddComponent<SpriteRenderer>();
+            isr.sprite = SquareSpriteFactory.GetSquareSprite();
+            isr.color = new Color(1f, 1f, 1f, 0.9f);
+            isr.sortingOrder = 2;
+            indicator = go.transform;
+        }
+        Vector2Int f = DirectionUtil.ToVector(Facing);
+        indicator.position = grid.GridToWorld(OutputCell - f) + new Vector3(f.x, f.y, 0f) * (0.36f * cs);
 
-        // Only create the demolish overlay once (SetDirection calls this again).
         if (demolishOverlay == null)
         {
             var overlayGo = new GameObject("DemolishOverlay");
@@ -94,43 +130,41 @@ public abstract class FactoryBuilding : MonoBehaviour
 
     protected virtual void Update()
     {
-        // Update demolish overlay scale based on hold progress
         if (demolishOverlay != null)
         {
-            demolishOverlay.transform.localScale = Vector3.one * demolishProgress;
+            demolishOverlay.transform.localScale = new Vector3(
+                footprintWorldSize.x * demolishProgress,
+                footprintWorldSize.y * demolishProgress, 1f);
         }
 
         if (heldItem != null)
         {
-            moveProgress += itemTravelSpeed * Time.deltaTime;
+            moveProgress += itemTravelSpeed * SpeedMultiplier * Time.deltaTime;
             if (moveProgress > 1f) moveProgress = 1f;
 
             Vector3 worldEntry = transform.position + EntryLocalOffset;
             Vector3 worldExit = transform.position + ExitLocalOffset;
             heldItem.transform.position = Vector3.Lerp(worldEntry, worldExit, moveProgress);
 
-            if (moveProgress >= 1f)
-            {
-                TryPushOutput();
-            }
+            if (moveProgress >= 1f) TryPushOutput();
         }
     }
 
     protected virtual void TryPushOutput()
     {
         FactoryBuilding neighbor = GetNeighborInFacing();
-        if (neighbor != null && neighbor.TryAcceptInput(heldItem))
+        if (neighbor != null && neighbor != this && neighbor.TryAcceptInput(heldItem))
         {
             heldItem = null;
             moveProgress = 0f;
         }
-        // else: stays parked at the exit edge, blocked, until the neighbor has room.
+        // else: stays parked at the exit edge until the neighbor has room.
     }
 
     /// <summary>
     /// Try to hand this building an item. Base implementation is plain
-    /// pass-through behaviour (used by conveyor belts). Miners reject all
-    /// input; Processors buffer input separately; Sellers consume for money.
+    /// pass-through (conveyor belts). Miners reject all input; Processors
+    /// buffer it; Sellers and ResearchLabs consume it.
     /// </summary>
     public virtual bool TryAcceptInput(ItemVisual item)
     {
@@ -142,14 +176,7 @@ public abstract class FactoryBuilding : MonoBehaviour
 
     protected FactoryBuilding GetNeighborInFacing()
     {
-        Vector2Int offset = DirectionUtil.ToVector(Facing);
-        return GridManager.Instance.GetBuilding(GridPosition + offset);
-    }
-
-    public virtual int GetUpgradeCost()
-    {
-        if (Definition == null) return 0;
-        return Definition.baseUpgradeCost * Level;
+        return GridManager.Instance.GetBuilding(OutputCell);
     }
 
     public virtual Direction GetDirection()
@@ -157,44 +184,58 @@ public abstract class FactoryBuilding : MonoBehaviour
         return Facing;
     }
 
+    /// <summary>
+    /// Rotates the building. Multi-cell buildings rotate around their center
+    /// cell and refuse to rotate if the new footprint would hit something.
+    /// </summary>
     public virtual void SetDirection(Direction newDir)
     {
-        Facing = newDir;
-        SetupVisuals(); // rebuild the facing indicator
+        if (newDir == Facing) return;
+
+        if (!IsSingleCell)
+        {
+            var grid = GridManager.Instance;
+            Vector2Int center = Footprint.CenterCell(GridPosition, Size, Facing);
+            Vector2Int newAnchor = Footprint.AnchorFromCenter(center, Size, newDir);
+
+            var newCells = new List<Vector2Int>();
+            Footprint.GetCells(newAnchor, Size, newDir, newCells);
+            foreach (var c in newCells)
+            {
+                FactoryBuilding other = grid.GetBuilding(c);
+                if (other != null && other != this) return; // blocked
+            }
+
+            foreach (var c in cells) grid.Unregister(c);
+            GridPosition = newAnchor;
+            cells.Clear();
+            cells.AddRange(newCells);
+            Facing = newDir;
+            foreach (var c in cells) grid.Register(c, this);
+        }
+        else
+        {
+            Facing = newDir;
+        }
+
+        SetupVisuals();
     }
 
-    /// <summary>
-    /// Updates the demolish overlay progress. Called by BuildManager while
-    /// the player holds right-click. Pass 0 to hide the overlay.
-    /// </summary>
+    /// <summary>Updates the demolish overlay. Pass 0 to hide it.</summary>
     public void SetDemolishProgress(float progress)
     {
         demolishProgress = Mathf.Clamp01(progress);
     }
 
-    /// <summary>
-    /// Spends money (if enough) and makes this building 25% faster per level.
-    /// Returns false if the player couldn't afford it.
-    /// </summary>
-    public virtual bool TryUpgrade()
-    {
-        int cost = GetUpgradeCost();
-        if (EconomyManager.Instance == null || !EconomyManager.Instance.TrySpend(cost))
-            return false;
-
-        Level++;
-        itemTravelSpeed *= 1.25f;
-        return true;
-    }
-
     public virtual void Demolish()
     {
-        Vector2Int cell = GridPosition;
-        GridManager.Instance.Unregister(cell);
+        var removed = new List<Vector2Int>(cells);
+        foreach (var c in removed) GridManager.Instance.Unregister(c);
         if (heldItem != null) { heldItem.Release(); heldItem = null; }
         Destroy(gameObject);
 
-        // Let neighbors re-route now that this cell is empty.
-        if (BuildManager.Instance != null) BuildManager.Instance.OnBuildingRemoved(cell);
+        // Let neighbors re-route now that these cells are empty.
+        if (BuildManager.Instance != null)
+            foreach (var c in removed) BuildManager.Instance.OnBuildingRemoved(c);
     }
 }

@@ -13,8 +13,12 @@ MonoBehaviour:
   m_Name: Seller
   m_EditorClassIdentifier: Assembly-CSharp::BuildingDefinition
   displayName: Seller
+  description: 
   category: Production
   prefab: {fileID: 5411995364435296564, guid: e622c375b3fd2d7419739782a4398fb8, type: 3}
   buildCost: 10
-  baseUpgradeCost: 15
+  size: {x: 1, y: 1}
+  speedMultiplier: 1
+  sellMultiplier: 1
+  unlockedByDefault: 0
   iconColor: {r: 0, g: 1, b: 0.108478546, a: 1}

@@ -30,7 +30,9 @@ public static class SquareSpriteFactory
             texture,
             new Rect(0, 0, size, size),
             new Vector2(0.5f, 0.5f),
-            size); // pixelsPerUnit == size => sprite is exactly 1x1 world units
+            size,
+            0,
+            SpriteMeshType.FullRect); 
 
         return cachedSprite;
     }
