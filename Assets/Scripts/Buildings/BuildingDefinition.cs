@@ -67,35 +67,6 @@ public class BuildingDefinition : ScriptableObject
         }
     }
 
-    [Header("Belt curve sprites (conveyor belts only, optional)")]
-    [Tooltip("Corner piece connecting the TOP edge and the RIGHT edge of the tile.")]
-    public Sprite curveUpRight;
-    [Tooltip("Corner piece connecting the RIGHT edge and the BOTTOM edge of the tile.")]
-    public Sprite curveRightDown;
-    [Tooltip("Corner piece connecting the BOTTOM edge and the LEFT edge of the tile.")]
-    public Sprite curveDownLeft;
-    [Tooltip("Corner piece connecting the LEFT edge and the TOP edge of the tile.")]
-    public Sprite curveLeftUp;
-
-    public bool HasCurveSprites =>
-        curveUpRight != null || curveRightDown != null || curveDownLeft != null || curveLeftUp != null;
-
-    /// <summary>
-    /// Corner sprite for a belt that leaves through 'outEdge' and is fed through 'inEdge'
-    /// (the two edges must be perpendicular). Returns null if that corner has no sprite.
-    /// </summary>
-    public Sprite GetCurveSprite(Direction outEdge, Direction inEdge)
-    {
-        bool Connects(Direction a, Direction b) =>
-            (outEdge == a && inEdge == b) || (outEdge == b && inEdge == a);
-
-        if (Connects(Direction.Up, Direction.Right)) return curveUpRight;
-        if (Connects(Direction.Right, Direction.Down)) return curveRightDown;
-        if (Connects(Direction.Down, Direction.Left)) return curveDownLeft;
-        if (Connects(Direction.Left, Direction.Up)) return curveLeftUp;
-        return null;
-    }
-
     /// <summary>Sprite used for UI icons: the default sprite, else the first directional one found.</summary>
     public Sprite PreviewSprite
     {

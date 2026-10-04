@@ -21,10 +21,43 @@ public class BoxFactoryContentEditor : EditorWindow
     private enum Tab { Items, Recipes, Buildings, Techs, SceneAndValidate }
     private static readonly string[] TabNames = { "Items", "Recipes", "Buildings", "Techs", "Scene & Validate" };
 
-    private static readonly Type[] PrefabTypes =
-        { typeof(Miner), typeof(ConveyorBelt), typeof(Processor), typeof(Seller), typeof(ResearchLab) };
-    private static readonly string[] PrefabTypeNames = { "Miner", "Conveyor Belt", "Processor", "Seller", "Research Lab" };
-    private static readonly string[] PrefabCategories = { "Production", "Logistics", "Production", "Selling", "Research" };
+    // ---- Prefab type dropdown: built automatically from every concrete FactoryBuilding subclass ----
+
+    private static Type[] prefabTypes;
+    private static string[] prefabTypeNames;
+
+    private static Type[] PrefabTypes
+    {
+        get
+        {
+            if (prefabTypes == null)
+                prefabTypes = TypeCache.GetTypesDerivedFrom<FactoryBuilding>()
+                    .Where(t => !t.IsAbstract)
+                    .OrderBy(t => t.Name)
+                    .ToArray();
+            return prefabTypes;
+        }
+    }
+
+    /// <summary>Dropdown labels: "ConveyorBelt" becomes "Conveyor Belt".</summary>
+    private static string[] PrefabTypeNames
+    {
+        get
+        {
+            if (prefabTypeNames == null)
+                prefabTypeNames = PrefabTypes.Select(t => ObjectNames.NicifyVariableName(t.Name)).ToArray();
+            return prefabTypeNames;
+        }
+    }
+
+    private static string CategoryFor(Type t)
+    {
+        if (t == typeof(ConveyorBelt) || t == typeof(Splitter)) return "Logistics";
+        if (t == typeof(Miner) || t == typeof(Processor)) return "Production";
+        if (t == typeof(Seller)) return "Selling";
+        if (t == typeof(ResearchLab)) return "Research";
+        return "Buildings"; // a new building type lands here until you add a line above
+    }
 
     private const string RootPrefKey = "BoxFactory.RootFolder";
 
@@ -265,8 +298,11 @@ public class BoxFactoryContentEditor : EditorWindow
                 b.iconColor = Color.HSVToRGB(UnityEngine.Random.value, 0.55f, 0.85f);
                 if (createPrefab)
                 {
-                    b.prefab = CreatePrefab(name, PrefabTypes[newPrefabType]);
-                    b.category = PrefabCategories[newPrefabType];
+                    newPrefabType = Mathf.Clamp(newPrefabType, 0, PrefabTypes.Length - 1);
+                    Type prefabType = PrefabTypes[newPrefabType];
+                    b.prefab = CreatePrefab(name, prefabType);
+                    b.category = CategoryFor(prefabType);
+                    if (prefabType == typeof(Splitter)) b.size = new Vector2Int(1, 2); // 1 long, 2 wide
                 }
                 break;
             case TechDefinition t:
@@ -441,7 +477,7 @@ public class BoxFactoryContentEditor : EditorWindow
             if (GUILayout.Button("Create prefab"))
             {
                 Undo.RecordObject(def, "Create prefab");
-                def.prefab = CreatePrefab(def.displayName, PrefabTypes[newPrefabType]);
+                def.prefab = CreatePrefab(def.displayName, PrefabTypes[Mathf.Clamp(newPrefabType, 0, PrefabTypes.Length - 1)]);
                 EditorUtility.SetDirty(def);
                 AssetDatabase.SaveAssets();
             }
@@ -621,6 +657,8 @@ public class BoxFactoryContentEditor : EditorWindow
         {
             if (b.prefab == null) Add(MessageType.Error, "Building '" + b.name + "' has no prefab.");
             if (b.size.x < 1 || b.size.y < 1) Add(MessageType.Error, "Building '" + b.name + "' has an invalid size.");
+            if (b.prefab is Splitter && b.size != new Vector2Int(1, 2))
+                Add(MessageType.Error, "Splitter '" + b.name + "' needs a size of (1, 2).");
             if (!b.unlockedByDefault && !unlockedByTech.Contains(b))
                 Add(MessageType.Warning, "Building '" + b.name + "' is locked and no tech unlocks it.");
             if (b.unlockedByDefault && unlockedByTech.Contains(b))

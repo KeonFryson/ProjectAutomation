@@ -30,6 +30,12 @@ public abstract class FactoryBuilding : MonoBehaviour
     /// <summary>False for buildings that never send items out (Seller, ResearchLab).</summary>
     public virtual bool HasOutput => true;
 
+    /// <summary>
+    /// True if this building pushes items into the given cell. Buildings with more than one
+    /// output (Splitter) override this so belts and the auto-connect logic see all of them.
+    /// </summary>
+    public virtual bool FeedsCell(Vector2Int cell) => HasOutput && OutputCell == cell;
+
     public float SpeedMultiplier =>
         Definition != null ? Mathf.Max(0.01f, Definition.speedMultiplier) : 1f;
 

@@ -33,6 +33,7 @@ public class BuildManager : MonoBehaviour
     private BuildingDefinition selectedDefinition;
     private GameObject ghost;
     private SpriteRenderer ghostRenderer;
+    private SpriteRenderer ghostArrows;
     private Direction currentFacing = Direction.Right;
     private bool facingManuallySet;
     private bool isDragging;
@@ -317,6 +318,30 @@ public class BuildManager : MonoBehaviour
         return fallback;
     }
 
+    /// <summary>
+    /// Same logic as ConveyorBelt.ResolveIncoming, but for a belt that isn't placed yet:
+    /// fed from behind = straight, fed from the side = corner.
+    /// </summary>
+    private Direction ResolveGhostIncoming(Vector2Int cell, Direction facing)
+    {
+        var grid = GridManager.Instance;
+        Direction back = Opposite(facing);
+        Direction? side = null;
+
+        foreach (Direction d in AllDirections)
+        {
+            if (d == facing) continue;
+
+            FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(d));
+            if (n == null || !n.HasOutput || n.OutputCell != cell) continue;
+
+            if (d == back) return facing;
+            if (side == null) side = Opposite(d);
+        }
+
+        return side ?? facing;
+    }
+
     /// <summary>Called for every cell freed by a demolished building.</summary>
     public void OnBuildingRemoved(Vector2Int removedCell)
     {
@@ -356,6 +381,8 @@ public class BuildManager : MonoBehaviour
         selectedDefinition = null;
         isDragging = false;
         if (ghost != null) Destroy(ghost);
+        if (ghostArrows != null) Destroy(ghostArrows.gameObject);
+        ghostArrows = null;
     }
 
     private void EnsureGhost()
@@ -365,6 +392,12 @@ public class BuildManager : MonoBehaviour
         ghostRenderer = ghost.AddComponent<SpriteRenderer>();
         ghostRenderer.sprite = SquareSpriteFactory.GetSquareSprite();
         ghostRenderer.sortingOrder = 5;
+
+        // Separate object (not a child) so the base sprite's stretch/rotation doesn't distort the arrows.
+        var arrowsGo = new GameObject("PlacementGhostArrows");
+        ghostArrows = arrowsGo.AddComponent<SpriteRenderer>();
+        ghostArrows.sortingOrder = 6;
+        ghostArrows.enabled = false;
     }
 
     private void UpdateGhost(Vector2Int anchor)
@@ -372,13 +405,27 @@ public class BuildManager : MonoBehaviour
         if (ghost == null) return;
 
         var grid = GridManager.Instance;
-        Vector2Int dims = Footprint.WorldSize(SelectedSize, currentFacing);
-        ghost.transform.position = Footprint.WorldCenter(anchor, SelectedSize, currentFacing, grid.cellSize);
-
         var def = selectedDefinition;
-        Color baseColor;
+        Vector2Int dims = Footprint.WorldSize(SelectedSize, currentFacing);
+        Vector3 center = Footprint.WorldCenter(anchor, SelectedSize, currentFacing, grid.cellSize);
+        ghost.transform.position = center;
 
-        Sprite dirSprite = def != null ? def.GetDirectionalSprite(currentFacing) : null;
+        // Belts: work out the facing/corner the placed belt will have, so base art and arrows match it.
+        bool isBelt = def != null && def.prefab is ConveyorBelt && SelectedSize == Vector2Int.one;
+        Direction shownFacing = currentFacing;
+        Sprite arrowSprite = null;
+        if (isBelt)
+        {
+            shownFacing = facingManuallySet ? currentFacing : ResolveFacing(anchor, currentFacing);
+            Direction incoming = ResolveGhostIncoming(anchor, shownFacing);
+
+            double fps = def.prefab.itemTravelSpeed * Mathf.Max(0.01f, def.speedMultiplier) * 32;
+            int frame = (int)((long)(Time.timeAsDouble * fps) % ConveyorArrowSprites.Frames);
+            arrowSprite = ConveyorArrowSprites.Get(incoming, shownFacing, frame);
+        }
+
+        Color baseColor;
+        Sprite dirSprite = def != null ? def.GetDirectionalSprite(shownFacing) : null;
 
         if (def != null && (dirSprite != null || def.sprite != null))
         {
@@ -387,13 +434,13 @@ public class BuildManager : MonoBehaviour
             Vector2 b = shown.bounds.size;
             b.x = Mathf.Max(0.0001f, b.x);
             b.y = Mathf.Max(0.0001f, b.y);
-            float k = 0.92f * grid.cellSize;
+            float k = (isBelt ? 1f : 0.92f) * grid.cellSize; // belts fill the tile like the placed belt
 
             ghostRenderer.sprite = shown;
             if (dirSprite == null && def.rotateSpriteWithFacing)
             {
-                bool left = currentFacing == Direction.Left;
-                ghost.transform.rotation = Quaternion.Euler(0f, 0f, left ? 0f : DirectionUtil.ToAngle(currentFacing));
+                bool left = shownFacing == Direction.Left;
+                ghost.transform.rotation = Quaternion.Euler(0f, 0f, left ? 0f : DirectionUtil.ToAngle(shownFacing));
                 ghostRenderer.flipX = left;
                 ghost.transform.localScale = new Vector3(SelectedSize.x * k / b.x, SelectedSize.y * k / b.y, 1f);
             }
@@ -415,9 +462,23 @@ public class BuildManager : MonoBehaviour
         }
 
         bool valid = CanPlace(anchor);
-        ghostRenderer.color = valid
+        Color tint = valid
             ? new Color(baseColor.r, baseColor.g, baseColor.b, 0.55f)
             : new Color(1f, 0.2f, 0.2f, 0.55f);
+        ghostRenderer.color = tint;
+
+        // Animated arrows on top of the base belt art (same as the placed belt).
+        if (ghostArrows != null)
+        {
+            ghostArrows.enabled = arrowSprite != null;
+            if (arrowSprite != null)
+            {
+                ghostArrows.sprite = arrowSprite;
+                ghostArrows.transform.position = center;
+                ghostArrows.transform.localScale = Vector3.one * grid.cellSize;
+                ghostArrows.color = valid ? new Color(1f, 1f, 1f, 0.55f) : tint;
+            }
+        }
     }
 
     private Vector3 GetMouseWorldPosition(Mouse mouse)

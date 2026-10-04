@@ -41,6 +41,7 @@ public class UIManager : MonoBehaviour
         public GameObject Root;
         public Image Border;
         public Image Icon;
+        public Image Overlay; // second layer, used for the belt's static arrows
         public ItemDefinition Item;
     }
 
@@ -83,6 +84,7 @@ public class UIManager : MonoBehaviour
     // Drag & drop from the build menu to the hotbar
     private GameObject dragGhost;
     private Image dragGhostImage;
+    private Image dragGhostOverlay;
     private BuildingDefinition dragDef;
 
     // Build menu
@@ -222,6 +224,16 @@ public class UIManager : MonoBehaviour
         grt.sizeDelta = new Vector2(48f, 48f);
         dragGhostImage = dragGhost.AddComponent<Image>();
         dragGhostImage.raycastTarget = false;
+
+        // Second layer for the belt's static arrows.
+        var dgo = new GameObject("Overlay");
+        dgo.transform.SetParent(dragGhost.transform, false);
+        Stretch(dgo.AddComponent<RectTransform>(), 0f);
+        dragGhostOverlay = dgo.AddComponent<Image>();
+        dragGhostOverlay.raycastTarget = false;
+        dragGhostOverlay.preserveAspect = true;
+        dragGhostOverlay.enabled = false;
+
         dragGhost.SetActive(false);
     }
 
@@ -623,6 +635,13 @@ public class UIManager : MonoBehaviour
         dragGhostImage.color = preview != null
             ? new Color(1f, 1f, 1f, 0.85f)
             : new Color(c.r, c.g, c.b, 0.85f);
+
+        // Belts: static arrows on top of the base art.
+        Sprite arrows = GetStaticBeltArrows(def);
+        dragGhostOverlay.enabled = arrows != null;
+        dragGhostOverlay.sprite = arrows;
+        dragGhostOverlay.color = new Color(1f, 1f, 1f, 0.85f);
+
         dragGhost.transform.position = e.position;
         dragGhost.SetActive(true);
     }
@@ -703,6 +722,7 @@ public class UIManager : MonoBehaviour
             {
                 hv.Slot.Item = null;
                 hv.Slot.Icon.enabled = false;
+                hv.Slot.Overlay.enabled = false;
                 hv.Slot.Border.color = SlotBorder;
             }
         }
@@ -1238,7 +1258,16 @@ public class UIManager : MonoBehaviour
         icon.raycastTarget = false;
         icon.enabled = false;
 
-        return new Slot { Root = go, Border = border, Icon = icon };
+        // Sits on top of the icon; only used for the belt's static arrows.
+        var overlayGo = new GameObject("IconOverlay");
+        overlayGo.transform.SetParent(go.transform, false);
+        Stretch(overlayGo.AddComponent<RectTransform>(), size * 0.2f);
+        var overlay = overlayGo.AddComponent<Image>();
+        overlay.raycastTarget = false;
+        overlay.preserveAspect = true;
+        overlay.enabled = false;
+
+        return new Slot { Root = go, Border = border, Icon = icon, Overlay = overlay };
     }
 
     private static void SetSlot(Slot slot, ItemDefinition item, bool active = false)
@@ -1246,6 +1275,7 @@ public class UIManager : MonoBehaviour
         if (slot == null) return;
         slot.Item = item;
         slot.Icon.enabled = item != null;
+        slot.Overlay.enabled = false;
         if (item != null) slot.Icon.color = item.color;
         slot.Border.color = active ? SlotBorderActive : SlotBorder;
     }
@@ -1259,15 +1289,27 @@ public class UIManager : MonoBehaviour
         slot.Icon.preserveAspect = true;
         slot.Icon.color = preview != null ? Color.white : def.iconColor;
         slot.Border.color = active ? SlotBorderActive : SlotBorder;
-    }
 
+        // Belts: static arrows (frame 0, facing right) on top of the base art.
+        Sprite arrows = GetStaticBeltArrows(def);
+        slot.Overlay.enabled = arrows != null;
+        slot.Overlay.sprite = arrows;
+    }
 
     private static void SetSlotColor(Slot slot, Color color, bool active)
     {
         slot.Item = null;
         slot.Icon.enabled = true;
+        slot.Overlay.enabled = false;
         slot.Icon.color = color;
         slot.Border.color = active ? SlotBorderActive : SlotBorder;
+    }
+
+    /// <summary>Frame 0 of the right-facing belt arrows, or null for non-belts / missing art.</summary>
+    private static Sprite GetStaticBeltArrows(BuildingDefinition def)
+    {
+        if (def == null || !(def.prefab is ConveyorBelt)) return null;
+        return ConveyorArrowSprites.Get(Direction.Right, Direction.Right, 0);
     }
 
     private void AddSlotHover(Slot slot, string prefix)
