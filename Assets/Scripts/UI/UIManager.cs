@@ -568,7 +568,7 @@ public class UIManager : MonoBehaviour
     private void CreateBuildIcon(BuildingDefinition def)
     {
         var slot = CreateSlot(menuGridParent, 72f);
-        SetSlotColor(slot, def.iconColor, false);
+        SetSlotBuilding(slot, def, false);
         slot.Root.name = def.displayName + "Icon";
 
         var label = CreateSlotText(slot.Root.transform, def.displayName, 11, TextAnchor.LowerCenter);
@@ -616,8 +616,13 @@ public class UIManager : MonoBehaviour
     private void BeginIconDrag(BuildingDefinition def, PointerEventData e)
     {
         dragDef = def;
+        Sprite preview = def.PreviewSprite;
+        dragGhostImage.sprite = preview;
+        dragGhostImage.preserveAspect = true;
         var c = def.iconColor;
-        dragGhostImage.color = new Color(c.r, c.g, c.b, 0.85f);
+        dragGhostImage.color = preview != null
+            ? new Color(1f, 1f, 1f, 0.85f)
+            : new Color(c.r, c.g, c.b, 0.85f);
         dragGhost.transform.position = e.position;
         dragGhost.SetActive(true);
     }
@@ -692,7 +697,7 @@ public class UIManager : MonoBehaviour
 
             if (hv.Def != null)
             {
-                SetSlotColor(hv.Slot, hv.Def.iconColor, false);
+                SetSlotBuilding(hv.Slot, hv.Def, false);
             }
             else
             {
@@ -1244,6 +1249,18 @@ public class UIManager : MonoBehaviour
         if (item != null) slot.Icon.color = item.color;
         slot.Border.color = active ? SlotBorderActive : SlotBorder;
     }
+
+    private static void SetSlotBuilding(Slot slot, BuildingDefinition def, bool active)
+    {
+        Sprite preview = def.PreviewSprite;
+        slot.Item = null;
+        slot.Icon.enabled = true;
+        slot.Icon.sprite = preview;
+        slot.Icon.preserveAspect = true;
+        slot.Icon.color = preview != null ? Color.white : def.iconColor;
+        slot.Border.color = active ? SlotBorderActive : SlotBorder;
+    }
+
 
     private static void SetSlotColor(Slot slot, Color color, bool active)
     {

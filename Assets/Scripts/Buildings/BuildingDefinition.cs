@@ -34,6 +34,78 @@ public class BuildingDefinition : ScriptableObject
     [Tooltip("Tick for starter buildings. Everything else must be unlocked by a TechDefinition.")]
     public bool unlockedByDefault = true;
 
-    [Tooltip("Color of the building's square in the world and on its build menu icon.")]
+    [Tooltip("Color of the building's square in the world and on its build menu icon. Used when no sprite is set.")]
     public Color iconColor = Color.gray;
+
+    [Header("Sprite (optional)")]
+    [Tooltip("Optional artwork. Stretched to fill the building's whole footprint. Leave empty to use the colored square.")]
+    public Sprite sprite;
+
+    [Tooltip("Draw the sprite facing RIGHT and rotate it with the building (good for belts, miners, etc). Untick for art that should always stay upright.")]
+    public bool rotateSpriteWithFacing = true;
+
+    [Header("Directional sprites (optional)")]
+    [Tooltip("Drawn when the building faces Up. Overrides the default sprite for that direction (no rotation applied). Leave empty to fall back to the default sprite.")]
+    public Sprite spriteUp;
+    [Tooltip("Drawn when the building faces Right. Leave empty to fall back to the default sprite.")]
+    public Sprite spriteRight;
+    [Tooltip("Drawn when the building faces Down. Leave empty to fall back to the default sprite.")]
+    public Sprite spriteDown;
+    [Tooltip("Drawn when the building faces Left. Leave empty to fall back to the default sprite.")]
+    public Sprite spriteLeft;
+
+    /// <summary>The sprite made specifically for this facing, or null if none was assigned.</summary>
+    public Sprite GetDirectionalSprite(Direction dir)
+    {
+        switch (dir)
+        {
+            case Direction.Up: return spriteUp;
+            case Direction.Right: return spriteRight;
+            case Direction.Down: return spriteDown;
+            case Direction.Left: return spriteLeft;
+            default: return null;
+        }
+    }
+
+    [Header("Belt curve sprites (conveyor belts only, optional)")]
+    [Tooltip("Corner piece connecting the TOP edge and the RIGHT edge of the tile.")]
+    public Sprite curveUpRight;
+    [Tooltip("Corner piece connecting the RIGHT edge and the BOTTOM edge of the tile.")]
+    public Sprite curveRightDown;
+    [Tooltip("Corner piece connecting the BOTTOM edge and the LEFT edge of the tile.")]
+    public Sprite curveDownLeft;
+    [Tooltip("Corner piece connecting the LEFT edge and the TOP edge of the tile.")]
+    public Sprite curveLeftUp;
+
+    public bool HasCurveSprites =>
+        curveUpRight != null || curveRightDown != null || curveDownLeft != null || curveLeftUp != null;
+
+    /// <summary>
+    /// Corner sprite for a belt that leaves through 'outEdge' and is fed through 'inEdge'
+    /// (the two edges must be perpendicular). Returns null if that corner has no sprite.
+    /// </summary>
+    public Sprite GetCurveSprite(Direction outEdge, Direction inEdge)
+    {
+        bool Connects(Direction a, Direction b) =>
+            (outEdge == a && inEdge == b) || (outEdge == b && inEdge == a);
+
+        if (Connects(Direction.Up, Direction.Right)) return curveUpRight;
+        if (Connects(Direction.Right, Direction.Down)) return curveRightDown;
+        if (Connects(Direction.Down, Direction.Left)) return curveDownLeft;
+        if (Connects(Direction.Left, Direction.Up)) return curveLeftUp;
+        return null;
+    }
+
+    /// <summary>Sprite used for UI icons: the default sprite, else the first directional one found.</summary>
+    public Sprite PreviewSprite
+    {
+        get
+        {
+            if (sprite != null) return sprite;
+            if (spriteRight != null) return spriteRight;
+            if (spriteUp != null) return spriteUp;
+            if (spriteDown != null) return spriteDown;
+            return spriteLeft;
+        }
+    }
 }

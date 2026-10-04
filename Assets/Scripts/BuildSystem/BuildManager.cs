@@ -37,6 +37,12 @@ public class BuildManager : MonoBehaviour
     private bool facingManuallySet;
     private bool isDragging;
     private Vector2Int lastDragCell;
+
+    // The tile we just dragged from (only valid while placing a dragged tile).
+    // Lets auto-connect tell a corner turn apart from a parallel line.
+    private Vector2Int dragPrevCell;
+    private bool hasDragPrev;
+
     private Camera mainCamera;
     private readonly List<Vector2Int> tmpCells = new List<Vector2Int>();
 
@@ -128,6 +134,7 @@ public class BuildManager : MonoBehaviour
         Vector2Int c = lastDragCell;
         while (c != target)
         {
+            Vector2Int prev = c;
             int dx = target.x - c.x;
             int dy = target.y - c.y;
             if (Mathf.Abs(dx) >= Mathf.Abs(dy)) c.x += (int)Mathf.Sign(dx);
@@ -136,7 +143,12 @@ public class BuildManager : MonoBehaviour
             lastDragCell = c;
             if (GridManager.Instance.IsOccupied(c)) continue;
 
-            if (!PlaceBuilding(c))
+            dragPrevCell = prev;
+            hasDragPrev = true;
+            bool placed = PlaceBuilding(c);
+            hasDragPrev = false;
+
+            if (!placed)
             {
                 isDragging = false;
                 return;
@@ -224,8 +236,13 @@ public class BuildManager : MonoBehaviour
         // Auto-facing only makes sense for single tiles; bigger machines use the ghost's rotation.
         if (!facingManuallySet && single)
         {
-            if (prefab is ConveyorBelt) AutoConnectNeighbors(anchor);
-            if (prefab.HasOutput && !(prefab is Processor)) facing = ResolveFacing(anchor, currentFacing);
+            // Auto-connect is belts only: other buildings keep the ghost's facing
+            // and never get rotated by a newly placed belt.
+            if (prefab is ConveyorBelt)
+            {
+                AutoConnectNeighbors(anchor);
+                facing = ResolveFacing(anchor, currentFacing);
+            }
         }
 
         FactoryBuilding instance = Instantiate(prefab);
@@ -244,13 +261,24 @@ public class BuildManager : MonoBehaviour
     private static bool CanOutput(FactoryBuilding b) => b.HasOutput;
     private static bool CanAccept(FactoryBuilding b) => b.HasInput;
 
+    // True if 'n' is a conveyor belt whose facing is perpendicular to the direction
+    // from the new tile to it, i.e. the new tile would be touching its side.
+    private static bool IsSideBelt(FactoryBuilding n, Direction dirToNeighbor)
+    {
+        return n is ConveyorBelt && ((int)n.Facing % 2) != ((int)dirToNeighbor % 2);
+    }
+
     private void AutoConnectNeighbors(Vector2Int cell)
     {
         var grid = GridManager.Instance;
         foreach (Direction dir in AllDirections)
         {
             FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(dir));
-            if (n == null || !CanOutput(n) || !n.IsSingleCell) continue;
+            if (n == null || !(n is ConveyorBelt) || !CanOutput(n) || !n.IsSingleCell) continue;
+
+            // Don't turn a neighboring belt sideways into us (parallel lines),
+            // unless it's the tile we just dragged from (that's a corner).
+            if (IsSideBelt(n, dir) && !(hasDragPrev && dragPrevCell == n.GridPosition)) continue;
 
             if (grid.IsOccupied(n.OutputCell)) continue;
             if (n.Facing == dir) continue;
@@ -274,7 +302,7 @@ public class BuildManager : MonoBehaviour
 
             bool feedsUs = CanOutput(n) && n.OutputCell == cell;
             if (feedsUs) feederFacing = n.Facing;
-            else if (CanAccept(n) && anyReceiver == null) anyReceiver = dir;
+            else if (CanAccept(n) && anyReceiver == null && !IsSideBelt(n, dir)) anyReceiver = dir;
         }
 
         if (feederFacing.HasValue)
@@ -296,7 +324,7 @@ public class BuildManager : MonoBehaviour
         foreach (Direction dir in AllDirections)
         {
             FactoryBuilding n = grid.GetBuilding(removedCell + DirectionUtil.ToVector(dir));
-            if (n == null || !CanOutput(n) || !n.IsSingleCell) continue;
+            if (n == null || !(n is ConveyorBelt) || !CanOutput(n) || !n.IsSingleCell) continue;
             if (n.OutputCell != removedCell) continue;
 
             Direction? best = null;
@@ -346,10 +374,47 @@ public class BuildManager : MonoBehaviour
         var grid = GridManager.Instance;
         Vector2Int dims = Footprint.WorldSize(SelectedSize, currentFacing);
         ghost.transform.position = Footprint.WorldCenter(anchor, SelectedSize, currentFacing, grid.cellSize);
-        ghost.transform.localScale = new Vector3(dims.x * 0.92f * grid.cellSize, dims.y * 0.92f * grid.cellSize, 1f);
+
+        var def = selectedDefinition;
+        Color baseColor;
+
+        Sprite dirSprite = def != null ? def.GetDirectionalSprite(currentFacing) : null;
+
+        if (def != null && (dirSprite != null || def.sprite != null))
+        {
+            // Same layout rules as FactoryBuilding.UpdateSpriteChild.
+            Sprite shown = dirSprite != null ? dirSprite : def.sprite;
+            Vector2 b = shown.bounds.size;
+            b.x = Mathf.Max(0.0001f, b.x);
+            b.y = Mathf.Max(0.0001f, b.y);
+            float k = 0.92f * grid.cellSize;
+
+            ghostRenderer.sprite = shown;
+            if (dirSprite == null && def.rotateSpriteWithFacing)
+            {
+                bool left = currentFacing == Direction.Left;
+                ghost.transform.rotation = Quaternion.Euler(0f, 0f, left ? 0f : DirectionUtil.ToAngle(currentFacing));
+                ghostRenderer.flipX = left;
+                ghost.transform.localScale = new Vector3(SelectedSize.x * k / b.x, SelectedSize.y * k / b.y, 1f);
+            }
+            else
+            {
+                ghost.transform.rotation = Quaternion.identity;
+                ghostRenderer.flipX = false;
+                ghost.transform.localScale = new Vector3(dims.x * k / b.x, dims.y * k / b.y, 1f);
+            }
+            baseColor = Color.white;
+        }
+        else
+        {
+            ghostRenderer.sprite = SquareSpriteFactory.GetSquareSprite();
+            ghostRenderer.flipX = false;
+            ghost.transform.rotation = Quaternion.identity;
+            ghost.transform.localScale = new Vector3(dims.x * 0.92f * grid.cellSize, dims.y * 0.92f * grid.cellSize, 1f);
+            baseColor = def != null ? def.iconColor : Color.white;
+        }
 
         bool valid = CanPlace(anchor);
-        Color baseColor = selectedDefinition != null ? selectedDefinition.iconColor : Color.white;
         ghostRenderer.color = valid
             ? new Color(baseColor.r, baseColor.g, baseColor.b, 0.55f)
             : new Color(1f, 0.2f, 0.2f, 0.55f);

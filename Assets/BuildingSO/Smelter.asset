@@ -17,7 +17,7 @@ MonoBehaviour:
   category: Production
   prefab: {fileID: 1339373298306540071, guid: dd96be34dbe23d24d91a03d9c791201c, type: 3}
   buildCost: 10
-  size: {x: 2, y: 3}
+  size: {x: 1, y: 1}
   speedMultiplier: 1
   sellMultiplier: 1
   unlockedByDefault: 0

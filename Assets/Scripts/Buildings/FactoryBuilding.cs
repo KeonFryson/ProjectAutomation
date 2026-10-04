@@ -5,7 +5,7 @@ using UnityEngine;
 /// Base class for every placeable thing in Box Factory.
 ///
 ///  - Occupies one or more grid cells (BuildingDefinition.size).
-///  - Auto-generates its own square sprite + collider.
+///  - Draws a colored square, or the definition's sprite if one is assigned.
 ///  - Holds at most one "in transit" item and moves it to the front edge,
 ///    then pushes it into whatever building is in front of it (OutputCell).
 ///  - Speed comes from BuildingDefinition.speedMultiplier (no paid upgrades).
@@ -41,6 +41,7 @@ public abstract class FactoryBuilding : MonoBehaviour
 
     private readonly List<Vector2Int> cells = new List<Vector2Int>();
     private Transform indicator;
+    private SpriteRenderer spriteChild;
     private SpriteRenderer demolishOverlay;
     private float demolishProgress;
     private Vector2 footprintWorldSize = Vector2.one;
@@ -62,6 +63,15 @@ public abstract class FactoryBuilding : MonoBehaviour
 
     /// <summary>The item this building is currently holding/carrying (null if none).</summary>
     public ItemDefinition HeldItemDefinition => heldItem != null ? heldItem.Definition : null;
+
+    /// <summary>
+    /// Subclasses can return a sprite that is drawn as-is (no rotation) instead of the normal one.
+    /// Return null to use the definition's sprites. ConveyorBelt uses this for curves.
+    /// </summary>
+    protected virtual Sprite GetOverrideSprite() { return null; }
+
+    /// <summary>Re-applies sprite, size and position (call after something visual changed).</summary>
+    protected void RefreshVisuals() { SetupVisuals(); }
 
     /// <summary>Called once, right after Instantiate, by BuildManager.</summary>
     public void Initialize(Vector2Int anchor, Direction facing, BuildingDefinition definition)
@@ -89,12 +99,30 @@ public abstract class FactoryBuilding : MonoBehaviour
         transform.localScale = Vector3.one;
 
         var sr = GetComponent<SpriteRenderer>();
-        sr.sprite = SquareSpriteFactory.GetSquareSprite();
-        sr.drawMode = SpriteDrawMode.Tiled; // stretches the flat square over the whole footprint
-        sr.tileMode = SpriteTileMode.Continuous;
-        sr.size = footprintWorldSize;
-        sr.color = Definition != null ? Definition.iconColor : Color.white;
-        sr.sortingOrder = 1;
+        // Priority: subclass override (belt curve) > sprite for this exact facing > default sprite.
+        Sprite dirSprite = GetOverrideSprite();
+        if (dirSprite == null && Definition != null) dirSprite = Definition.GetDirectionalSprite(Facing);
+        bool hasSprite = Definition != null && (dirSprite != null || Definition.sprite != null);
+        bool rotateSprite = hasSprite && dirSprite == null && Definition.rotateSpriteWithFacing;
+        bool spriteShowsDirection = hasSprite && (dirSprite != null || rotateSprite);
+
+        if (hasSprite)
+        {
+            // The root renderer is hidden; a child renderer draws the artwork.
+            sr.enabled = false;
+            UpdateSpriteChild(cs, dirSprite, rotateSprite);
+        }
+        else
+        {
+            if (spriteChild != null) spriteChild.gameObject.SetActive(false);
+            sr.enabled = true;
+            sr.sprite = SquareSpriteFactory.GetSquareSprite();
+            sr.drawMode = SpriteDrawMode.Tiled; // stretches the flat square over the whole footprint
+            sr.tileMode = SpriteTileMode.Continuous;
+            sr.size = footprintWorldSize;
+            sr.color = Definition != null ? Definition.iconColor : Color.white;
+            sr.sortingOrder = 1;
+        }
 
         var collider = GetComponent<BoxCollider2D>();
         if (collider == null) collider = gameObject.AddComponent<BoxCollider2D>();
@@ -113,6 +141,8 @@ public abstract class FactoryBuilding : MonoBehaviour
             isr.sortingOrder = 2;
             indicator = go.transform;
         }
+        // A directional or rotating sprite already shows which way the building points.
+        indicator.gameObject.SetActive(!spriteShowsDirection);
         Vector2Int f = DirectionUtil.ToVector(Facing);
         indicator.position = grid.GridToWorld(OutputCell - f) + new Vector3(f.x, f.y, 0f) * (0.36f * cs);
 
@@ -125,6 +155,50 @@ public abstract class FactoryBuilding : MonoBehaviour
             demolishOverlay.sprite = SquareSpriteFactory.GetSquareSprite();
             demolishOverlay.color = new Color(1f, 0.15f, 0.15f, 0.65f);
             demolishOverlay.sortingOrder = 3;
+        }
+    }
+
+    /// <summary>
+    /// Draws the definition's sprite on a child object, stretched over the whole footprint.
+    /// If dirSprite is set it is drawn as-is (the art was made for this facing).
+    /// Otherwise the default sprite is used, expected to face RIGHT: Up/Down rotate it,
+    /// Left mirrors it so it never ends up upside down (when 'rotate' is true).
+    /// </summary>
+    private void UpdateSpriteChild(float cs, Sprite dirSprite, bool rotate)
+    {
+        if (spriteChild == null)
+        {
+            var go = new GameObject("Sprite");
+            go.transform.SetParent(transform, false);
+            spriteChild = go.AddComponent<SpriteRenderer>();
+            spriteChild.sortingOrder = 1;
+        }
+
+        spriteChild.gameObject.SetActive(true);
+        Sprite shown = dirSprite != null ? dirSprite : Definition.sprite;
+        spriteChild.sprite = shown;
+        spriteChild.color = Color.white;
+
+        Vector2 spriteSize = shown.bounds.size;
+        spriteSize.x = Mathf.Max(0.0001f, spriteSize.x);
+        spriteSize.y = Mathf.Max(0.0001f, spriteSize.y);
+
+        Transform t = spriteChild.transform;
+        t.localPosition = Vector3.zero;
+
+        if (rotate)
+        {
+            // Local X = along facing (length), local Y = across it (width).
+            bool left = Facing == Direction.Left;
+            t.localRotation = Quaternion.Euler(0f, 0f, left ? 0f : DirectionUtil.ToAngle(Facing));
+            spriteChild.flipX = left;
+            t.localScale = new Vector3(Size.x * cs / spriteSize.x, Size.y * cs / spriteSize.y, 1f);
+        }
+        else
+        {
+            t.localRotation = Quaternion.identity;
+            spriteChild.flipX = false;
+            t.localScale = new Vector3(footprintWorldSize.x / spriteSize.x, footprintWorldSize.y / spriteSize.y, 1f);
         }
     }
 

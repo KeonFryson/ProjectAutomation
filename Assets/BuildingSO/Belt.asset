@@ -22,3 +22,13 @@ MonoBehaviour:
   sellMultiplier: 1
   unlockedByDefault: 1
   iconColor: {r: 0, g: 0, b: 0, a: 1}
+  sprite: {fileID: -22688414, guid: 32394d91a1c226348af5113e62ca2f03, type: 3}
+  rotateSpriteWithFacing: 1
+  spriteUp: {fileID: 7893095021643048377, guid: 32394d91a1c226348af5113e62ca2f03, type: 3}
+  spriteRight: {fileID: -22688414, guid: 32394d91a1c226348af5113e62ca2f03, type: 3}
+  spriteDown: {fileID: 482917863, guid: 32394d91a1c226348af5113e62ca2f03, type: 3}
+  spriteLeft: {fileID: 340707073, guid: 32394d91a1c226348af5113e62ca2f03, type: 3}
+  curveUpRight: {fileID: -2080715325, guid: 674af205384981848b6fcc9a13ec2deb, type: 3}
+  curveRightDown: {fileID: 1165499700, guid: 674af205384981848b6fcc9a13ec2deb, type: 3}
+  curveDownLeft: {fileID: -984066901, guid: 674af205384981848b6fcc9a13ec2deb, type: 3}
+  curveLeftUp: {fileID: -41745480855171344, guid: 674af205384981848b6fcc9a13ec2deb, type: 3}
