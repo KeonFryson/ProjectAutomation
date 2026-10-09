@@ -114,8 +114,7 @@ public class SaveManager : MonoBehaviour
         var d = new SaveData
         {
             savedAtTicks = System.DateTime.UtcNow.Ticks,
-            playTimeSeconds = PlayTime,
-            money = EconomyManager.Instance != null ? EconomyManager.Instance.Money : 0
+            playTimeSeconds = PlayTime
         };
 
         foreach (FactoryBuilding b in GridManager.Instance.GetAllBuildings())
@@ -187,8 +186,6 @@ public class SaveManager : MonoBehaviour
         if (BuildManager.Instance != null) BuildManager.Instance.CancelPlacement();
         ClearWorld();
 
-        if (EconomyManager.Instance != null) EconomyManager.Instance.SetMoney(d.money);
-
         ApplyResearch(d);   // before the hotbar: locked buildings are dropped from it
         ApplyBuildings(d);
 
@@ -249,7 +246,7 @@ public class SaveManager : MonoBehaviour
             BuildingDefinition def = DefinitionRegistry.GetBuilding(bs.definition);
             if (def == null || def.prefab == null)
             {
-                Debug.LogWarning("SaveManager: unknown building '" + bs.definition + "' skipped.");
+                Debug.LogWarning("SaveManager: unknown building '" + bs.definition + "' skipped (e.g. the removed Seller).");
                 continue;
             }
 

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8a8079767b05a643ae69c4801d8700b, type: 3}
+  m_Name: Express Belts
+  m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
+  displayName: Express Belts
+  description: 
+  prerequisites:
+  - {fileID: 11400000, guid: 27d3c1258f57a2241a2438f3f67eaeca, type: 2}
+  cost:
+  - item: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
+    amount: 60
+  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
+    amount: 40
+  unlocks:
+  - {fileID: 11400000, guid: c1cb9037497f79c468c530f559fc6215, type: 2}

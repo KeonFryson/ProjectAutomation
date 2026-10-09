@@ -7,7 +7,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Builds the whole HUD in code, styled after Factorio (gray panels, dark inset
 /// areas, orange accents, square item slots):
-///  - top-left: money + current research progress
+///  - top-left: current research progress (only visible while researching)
 ///  - bottom: hotbar (keys 1-9) with the first unlocked buildings
 ///  - [Q] build menu with category tabs
 ///  - [T] tech tree window: nodes in columns, prerequisite lines, detail panel
@@ -65,10 +65,10 @@ public class UIManager : MonoBehaviour
     private class HotbarView { public BuildingDefinition Def; public Slot Slot; }
 
     private Font uiFont;
-    private Text moneyText;
     private Text hintText;
 
-    // HUD research box
+    // HUD research box (the whole HUD panel is hidden when nothing is being researched)
+    private GameObject hudRoot;
     private RectTransform hudResearchParent;
     private RectTransform hudBarFill;
     private readonly List<CostView> hudCosts = new List<CostView>();
@@ -79,7 +79,6 @@ public class UIManager : MonoBehaviour
     private RectTransform hotbarParent;
     private Text hotbarInfoText;
     private readonly List<HotbarView> hotbarViews = new List<HotbarView>();
-    private const string HotbarPrefKey = "BoxFactory.Hotbar";
 
     // Drag & drop from the build menu to the hotbar
     private GameObject dragGhost;
@@ -128,6 +127,7 @@ public class UIManager : MonoBehaviour
     public bool IsInspectorOpen => inspectorWindow != null && inspectorWindow.Root.activeSelf;
     private void LoadHotbar() { RebuildHotbar(); }
     private void SaveHotbar() { }
+
     void Awake()
     {
         Instance = this;
@@ -141,19 +141,12 @@ public class UIManager : MonoBehaviour
         RebuildBuildMenu();
         LoadHotbar();
 
-        if (EconomyManager.Instance != null)
-        {
-            EconomyManager.Instance.OnMoneyChanged += UpdateMoneyText;
-            UpdateMoneyText(EconomyManager.Instance.Money);
-        }
         if (ResearchManager.Instance != null)
             ResearchManager.Instance.OnTechCompleted += OnTechCompleted;
     }
 
     void OnDestroy()
     {
-        if (EconomyManager.Instance != null)
-            EconomyManager.Instance.OnMoneyChanged -= UpdateMoneyText;
         if (ResearchManager.Instance != null)
             ResearchManager.Instance.OnTechCompleted -= OnTechCompleted;
     }
@@ -243,6 +236,7 @@ public class UIManager : MonoBehaviour
     {
         var go = new GameObject("Hud");
         go.transform.SetParent(parent, false);
+        hudRoot = go;
         var rt = go.AddComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
         rt.anchoredPosition = new Vector2(14f, -14f);
@@ -259,8 +253,6 @@ public class UIManager : MonoBehaviour
         vlg.childControlHeight = true;
         go.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        moneyText = CreateText(go.transform, "Money", "$0", 26, FontStyle.Bold, TextAnchor.MiddleLeft, 34f);
-
         var box = new GameObject("ResearchBox");
         box.transform.SetParent(go.transform, false);
         hudResearchParent = box.AddComponent<RectTransform>();
@@ -271,6 +263,8 @@ public class UIManager : MonoBehaviour
         boxVlg.childControlWidth = true;
         boxVlg.childControlHeight = true;
         box.SetActive(false);
+
+        go.SetActive(false); // nothing to show until a tech is being researched
     }
 
     private void BuildHotbar(Transform parent)
@@ -609,10 +603,9 @@ public class UIManager : MonoBehaviour
     {
         var size = Footprint.ClampSize(def.size);
         var sb = new System.Text.StringBuilder();
-        sb.Append(def.displayName).Append("    $").Append(def.buildCost);
+        sb.Append(def.displayName);
         sb.Append("\nSize ").Append(size.x).Append("x").Append(size.y);
         sb.Append("    Speed x").Append(def.speedMultiplier.ToString("0.##"));
-        if (def.prefab is Seller) sb.Append("    Sell value x").Append(def.sellMultiplier.ToString("0.##"));
         if (!string.IsNullOrEmpty(def.description)) sb.Append("\n").Append(def.description);
         return sb.ToString();
     }
@@ -755,6 +748,7 @@ public class UIManager : MonoBehaviour
             hudCosts.Clear();
             hudBarFill = null;
             hudResearchParent.gameObject.SetActive(cur != null);
+            hudRoot.SetActive(cur != null);
 
             if (cur != null)
             {
@@ -1358,11 +1352,6 @@ public class UIManager : MonoBehaviour
     // Machine window
     // ---------------------------------------------------------------
 
-    private void UpdateMoneyText(int amount)
-    {
-        if (moneyText != null) moneyText.text = "$" + amount;
-    }
-
     public void ShowInspector(FactoryBuilding building)
     {
         if (IsMenuOpen) return;
@@ -1372,11 +1361,8 @@ public class UIManager : MonoBehaviour
 
         inspectorWindow.Title.text = building.Definition != null ? building.Definition.displayName : building.name;
 
-        string stats = "Size " + building.Size.x + "x" + building.Size.y
-                       + "    Speed x" + building.SpeedMultiplier.ToString("0.##");
-        if (building is Seller && building.Definition != null)
-            stats += "    Sell value x" + building.Definition.sellMultiplier.ToString("0.##");
-        inspectorStatsText.text = stats;
+        inspectorStatsText.text = "Size " + building.Size.x + "x" + building.Size.y
+                                  + "    Speed x" + building.SpeedMultiplier.ToString("0.##");
 
         RefreshInspectorOptions(building);
     }

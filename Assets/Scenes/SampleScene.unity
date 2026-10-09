@@ -383,7 +383,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1962065049}
   - component: {fileID: 1962065048}
-  - component: {fileID: 1962065047}
   - component: {fileID: 1962065046}
   - component: {fileID: 1962065045}
   - component: {fileID: 1962065050}
@@ -421,25 +420,22 @@ MonoBehaviour:
   availableBuildings:
   - {fileID: 11400000, guid: 8949cd6064377ef4e91b8f0ff2636948, type: 2}
   - {fileID: 11400000, guid: f6e0ab38d35ee394983166b19c5dc772, type: 2}
-  - {fileID: 11400000, guid: 62f181504a0cd1c4883c2e25a8a50c48, type: 2}
   - {fileID: 11400000, guid: bce682ed3b500e6429ad96d3abf9ca80, type: 2}
   - {fileID: 11400000, guid: d1f6191af74f18045bec7da97f33727d, type: 2}
   - {fileID: 11400000, guid: c2901c17861d3274797ab6114fc53b43, type: 2}
   - {fileID: 11400000, guid: 3bb060f85f1c56849a3dc4bc91e1c725, type: 2}
+  - {fileID: 11400000, guid: 72515cb23e617044c9a4b4b68aa21d4e, type: 2}
+  - {fileID: 11400000, guid: 1460801d9c8e68a49a19c559172e22d5, type: 2}
+  - {fileID: 11400000, guid: d7a48b2ebdf555a4cb0040544a936ebc, type: 2}
+  - {fileID: 11400000, guid: ef7bba0fd4c76424693da65638a4e7ef, type: 2}
+  - {fileID: 11400000, guid: 1a77ea5e73fa4ac45a454a49658dee23, type: 2}
+  - {fileID: 11400000, guid: c1cb9037497f79c468c530f559fc6215, type: 2}
+  - {fileID: 11400000, guid: 9f52faaf87beef144b8c9b18ae275a8e, type: 2}
+  - {fileID: 11400000, guid: 927a5d321aba2e045895b731aee344e9, type: 2}
+  - {fileID: 11400000, guid: e26750cd57944cc439e4fd3f6e63ea67, type: 2}
+  - {fileID: 11400000, guid: 9ad67d9ec7cfe1d46927c4be67bb414f, type: 2}
+  - {fileID: 11400000, guid: 499ed2ff195320a44a6e0f3d7f98d91c, type: 2}
   deletionHoldTime: 0.3
---- !u!114 &1962065047
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1962065044}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05f80f4b352eb5e489e9858a73159a11, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EconomyManager
-  startingMoney: 100
 --- !u!114 &1962065048
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -481,8 +477,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ResearchManager
   allTechs:
-  - {fileID: 11400000, guid: 1724217817dc41b4fb9e2d881bc94e11, type: 2}
-  - {fileID: 11400000, guid: 3729d20d5c980584399b9444aa8d6c75, type: 2}
+  - {fileID: 11400000, guid: a093dfbf4b23ed149a2728b3f1c04def, type: 2}
+  - {fileID: 11400000, guid: 200df0656a96bf94d921ed5defcf6f85, type: 2}
+  - {fileID: 11400000, guid: e7ab6ed58fde80849b21dde7a8e3116f, type: 2}
+  - {fileID: 11400000, guid: 866829111c0c53443ab6eec6f675dcf6, type: 2}
+  - {fileID: 11400000, guid: 6dfd148e5dd40614ca17a065286367f9, type: 2}
+  - {fileID: 11400000, guid: 27d3c1258f57a2241a2438f3f67eaeca, type: 2}
+  - {fileID: 11400000, guid: ae69b9f3ffaadb74c8cc3a17e231b2bc, type: 2}
+  - {fileID: 11400000, guid: 9e4581886dbbb20419fca1341421ac0f, type: 2}
+  - {fileID: 11400000, guid: cfecec1825f4fa7468f5ef4b0a95c053, type: 2}
+  - {fileID: 11400000, guid: 4bb03859c6ef054409168aba75dc3593, type: 2}
+  - {fileID: 11400000, guid: 26cfd0c9f91a3bc47b40e72b40e3c3ca, type: 2}
+  - {fileID: 11400000, guid: 926002d667c6d914789953b118d1660d, type: 2}
+  - {fileID: 11400000, guid: 679e490bd9599064483549161b5c06ee, type: 2}
 --- !u!1 &2101859974
 GameObject:
   m_ObjectHideFlags: 0

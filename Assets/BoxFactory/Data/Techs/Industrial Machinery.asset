@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8a8079767b05a643ae69c4801d8700b, type: 3}
+  m_Name: Industrial Machinery
+  m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
+  displayName: Industrial Machinery
+  description: 
+  prerequisites:
+  - {fileID: 11400000, guid: e7ab6ed58fde80849b21dde7a8e3116f, type: 2}
+  - {fileID: 11400000, guid: 866829111c0c53443ab6eec6f675dcf6, type: 2}
+  cost:
+  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
+    amount: 60
+  - item: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
+    amount: 60
+  unlocks:
+  - {fileID: 11400000, guid: 499ed2ff195320a44a6e0f3d7f98d91c, type: 2}
+  - {fileID: 11400000, guid: e26750cd57944cc439e4fd3f6e63ea67, type: 2}
+  - {fileID: 11400000, guid: ef7bba0fd4c76424693da65638a4e7ef, type: 2}

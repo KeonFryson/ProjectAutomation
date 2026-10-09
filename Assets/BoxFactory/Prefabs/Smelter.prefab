@@ -106,6 +106,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Processor
   itemTravelSpeed: 2
   recipes:
-  - {fileID: 11400000, guid: 738c033db6c7c0840895b85b8f400164, type: 2}
   - {fileID: 11400000, guid: ee6cdf2542b4dbb47902868e32d8cb3a, type: 2}
+  - {fileID: 11400000, guid: 738c033db6c7c0840895b85b8f400164, type: 2}
   recipe: {fileID: 0}

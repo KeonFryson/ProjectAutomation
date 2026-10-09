@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8a8079767b05a643ae69c4801d8700b, type: 3}
+  m_Name: High-Throughput Lab
+  m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
+  displayName: High-Throughput Lab
+  description: 
+  prerequisites:
+  - {fileID: 11400000, guid: 6dfd148e5dd40614ca17a065286367f9, type: 2}
+  - {fileID: 11400000, guid: cfecec1825f4fa7468f5ef4b0a95c053, type: 2}
+  cost:
+  - item: {fileID: 11400000, guid: 93d46ae36422d9446a5f74a644a4e8e8, type: 2}
+    amount: 40
+  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
+    amount: 40
+  unlocks:
+  - {fileID: 11400000, guid: 927a5d321aba2e045895b731aee344e9, type: 2}

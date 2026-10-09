@@ -56,7 +56,6 @@ public class BoxFactoryContentEditor : EditorWindow
     {
         if (t == typeof(ConveyorBelt) || t == typeof(Splitter)) return "Logistics";
         if (t == typeof(Miner) || t == typeof(Processor)) return "Production";
-        if (t == typeof(Seller)) return "Selling";
         if (t == typeof(ResearchLab)) return "Research";
         return "Buildings"; // a new building type lands here until you add a line above
     }
@@ -590,7 +589,6 @@ public class BoxFactoryContentEditor : EditorWindow
         if (GUILayout.Button("Create missing scene managers", GUILayout.Height(26)))
         {
             EnsureManager<GridManager>("GridManager");
-            EnsureManager<EconomyManager>("EconomyManager");
             EnsureManager<BuildManager>("BuildManager");
             EnsureManager<ResearchManager>("ResearchManager");
             EnsureManager<UIManager>("UIManager");
@@ -644,7 +642,6 @@ public class BoxFactoryContentEditor : EditorWindow
         if (bm == null) Add(MessageType.Error, "No BuildManager in the scene.");
         if (rm == null && techs.Length > 0) Add(MessageType.Warning, "Techs exist but there is no ResearchManager in the scene (everything counts as unlocked).");
         if (FindFirstObjectByType<GridManager>() == null) Add(MessageType.Error, "No GridManager in the scene.");
-        if (FindFirstObjectByType<EconomyManager>() == null) Add(MessageType.Error, "No EconomyManager in the scene.");
         if (FindFirstObjectByType<UIManager>() == null) Add(MessageType.Warning, "No UIManager in the scene.");
 
         // IDs: every item/building needs a unique one, or saves can't tell them apart.
@@ -667,9 +664,6 @@ public class BoxFactoryContentEditor : EditorWindow
             if (m.producedItem != null) producible.Add(m.producedItem);
         }
         foreach (var r in recipes) if (r.outputItem != null) producible.Add(r.outputItem);
-
-        foreach (var i in items)
-            if (i.sellValue <= 0) Add(MessageType.Warning, "Item '" + i.name + "' has a sell value of " + i.sellValue + ".");
 
         var usedRecipes = new HashSet<RecipeDefinition>();
         foreach (var p in PrefabsOf<Processor>()) foreach (var r in p.recipes) if (r != null) usedRecipes.Add(r);
@@ -712,6 +706,7 @@ public class BoxFactoryContentEditor : EditorWindow
                     Add(MessageType.Warning, "Tech '" + t.name + "' needs '" + c.item.name + "' but no miner or recipe produces it.");
             }
             if (t.unlocks.Count == 0) Add(MessageType.Warning, "Tech '" + t.name + "' unlocks nothing.");
+            if (t.unlocks.Any(b => b == null)) Add(MessageType.Warning, "Tech '" + t.name + "' has an empty unlock slot (e.g. the deleted Seller).");
             if (rm != null && !rm.allTechs.Contains(t)) Add(MessageType.Warning, "Tech '" + t.name + "' is not in ResearchManager.allTechs.");
         }
 

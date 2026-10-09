@@ -176,8 +176,7 @@ public class SaveSlotPanel
         if (!exists) return name + "\n<color=#8a8a92>Empty</color>";
         if (d == null) return name + "\n<color=#e06060>Unreadable save file</color>";
 
-        return name + "\n$" + d.money.ToString("N0")
-               + "   |   " + d.buildings.Count + " buildings"
+        return name + "\n" + d.buildings.Count + " buildings"
                + "   |   " + d.completedTechs.Count + " techs researched"
                + "\n<color=#a8a8b0>Play time " + SaveSystem.FormatPlayTime(d.playTimeSeconds)
                + "   |   " + SaveSystem.FormatSavedAt(d.savedAtTicks) + "</color>";

@@ -5,18 +5,17 @@ using System.Collections.Generic;
 [Serializable]
 public class SaveData
 {
-    public int version = 2;
+    public int version = 3;            // 3: money removed (a leftover "money" field in old saves is ignored)
     public long savedAtTicks;          // UTC ticks, used for "most recent" and display
     public float playTimeSeconds;
 
-    public int money;
     public List<BuildingSave> buildings = new List<BuildingSave>();
 
     public List<string> completedTechs = new List<string>();
     public string currentTech;
     public List<TechProgressSave> techProgress = new List<TechProgressSave>();
 
-    /// <summary>BuildingDefinition asset name per hotbar slot ("" = empty). Empty list = not stored (old save).</summary>
+    /// <summary>BuildingDefinition ID per hotbar slot ("" = empty). Empty list = not stored (old save).</summary>
     public List<string> hotbar = new List<string>();
 
     public bool hasCamera;
@@ -44,8 +43,6 @@ public class BuildingSave
     // Splitter
     public int nextOut;
     public List<string> laneItems = new List<string>(); // ItemDefinition IDs
-// hotbar: BuildingDefinition IDs per slot
-// ItemCountSave.item: ItemDefinition ID
     public List<float> laneProgress = new List<float>();
 }
 
@@ -59,6 +56,6 @@ public class TechProgressSave
 [Serializable]
 public class ItemCountSave
 {
-    public string item;         // ItemDefinition asset name
+    public string item;         // ItemDefinition ID
     public int count;
 }

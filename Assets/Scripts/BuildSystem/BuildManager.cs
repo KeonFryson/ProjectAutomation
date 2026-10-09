@@ -10,12 +10,13 @@ using UnityEngine.InputSystem;
 ///   1-9                          - pick a building from the hotbar
 ///   Move mouse                   - ghost preview snaps to the grid (green = valid, red = blocked)
 ///   R                            - rotate the ghost / hovered building clockwise
-///   Left click on the grid       - place the building (spends money)
+///   Left click on the grid       - place the building (free)
 ///   Left click + drag            - (1x1 buildings) place on every cell you drag over
 ///   Left click on a building     - open its window (when not placing)
 ///   Right click / Escape         - cancel placement
 ///   Right click + hold (1 sec)   - delete a placed building
 /// Buildings larger than 1x1 are placed with the mouse over their center cell.
+/// Placing is free; which buildings you can place is gated by the tech tree.
 /// </summary>
 public class BuildManager : MonoBehaviour
 {
@@ -99,7 +100,7 @@ public class BuildManager : MonoBehaviour
             isDragging = single; // only 1x1 buildings can be drag-placed
             lastDragCell = cursorCell;
             if (CanPlace(anchor) && !PlaceBuilding(anchor))
-                isDragging = false; // couldn't afford it
+                isDragging = false; // building can't be placed (locked or missing prefab)
         }
         else if (isDragging && mouse.leftButton.isPressed)
         {
@@ -222,13 +223,11 @@ public class BuildManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Assumes CanPlace(anchor) was checked. Returns false if the player can't pay.</summary>
+    /// <summary>Assumes CanPlace(anchor) was checked. Returns false if the building is locked or has no prefab.</summary>
     private bool PlaceBuilding(Vector2Int anchor)
     {
         if (selectedDefinition == null || selectedDefinition.prefab == null) return false;
         if (!ResearchManager.IsBuildingUnlocked(selectedDefinition)) return false;
-        if (EconomyManager.Instance == null || !EconomyManager.Instance.TrySpend(selectedDefinition.buildCost))
-            return false;
 
         FactoryBuilding prefab = selectedDefinition.prefab;
         Direction facing = currentFacing;
