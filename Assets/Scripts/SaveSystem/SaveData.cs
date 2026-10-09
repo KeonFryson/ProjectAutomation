@@ -26,24 +26,26 @@ public class SaveData
 [Serializable]
 public class BuildingSave
 {
-    public string definition;   // BuildingDefinition asset name
+    public string definition;   // BuildingDefinition ID (e.g. "B02")
     public int x, y;            // anchor cell
     public int facing;          // Direction enum value
 
     // Item being carried across the building (belts, miners, finished products...)
-    public string held;         // ItemDefinition asset name ("" = none)
+    public string held;         // ItemDefinition ID ("" = none)
     public float progress;      // 0..1 position along the building
 
     // Miner: item being mined. Miner/Processor: production timer.
-    public string item;
+    public string item;  // Miner: ItemDefinition ID being mined
     public float timer;
 
     // Processor: recipe currently running ("" = idle)
-    public string recipe;
+    public string recipe; // Processor: input item ID of the running recipe ("" = idle)
 
     // Splitter
     public int nextOut;
-    public List<string> laneItems = new List<string>();
+    public List<string> laneItems = new List<string>(); // ItemDefinition IDs
+// hotbar: BuildingDefinition IDs per slot
+// ItemCountSave.item: ItemDefinition ID
     public List<float> laneProgress = new List<float>();
 }
 

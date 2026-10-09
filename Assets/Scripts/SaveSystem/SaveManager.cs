@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// Captures / restores the game state and runs autosave.
 /// Created automatically by GameBootstrap (or add it to the scene yourself).
+/// Buildings and items are saved by their ID (B01, I01, ...), see GameDefinition.
 /// </summary>
 public class SaveManager : MonoBehaviour
 {
@@ -122,7 +123,7 @@ public class SaveManager : MonoBehaviour
             if (b == null || b.Definition == null) continue;
             var bs = new BuildingSave
             {
-                definition = b.Definition.name,
+                definition = b.Definition.SaveKey, // building ID, e.g. "B02"
                 x = b.GridPosition.x,
                 y = b.GridPosition.y,
                 facing = (int)b.Facing
@@ -145,13 +146,13 @@ public class SaveManager : MonoBehaviour
                 var tp = new TechProgressSave { tech = kv.Key.name };
                 foreach (var ic in kv.Value)
                     if (ic.Key != null && ic.Value > 0)
-                        tp.items.Add(new ItemCountSave { item = ic.Key.name, count = ic.Value });
+                        tp.items.Add(new ItemCountSave { item = ic.Key.SaveKey, count = ic.Value });
                 if (tp.items.Count > 0) d.techProgress.Add(tp);
             }
         }
 
         if (UIManager.Instance != null)
-            d.hotbar.AddRange(UIManager.Instance.GetHotbarDefinitionNames());
+            d.hotbar.AddRange(UIManager.Instance.GetHotbarIds());
 
         var cam = FindFirstObjectByType<TopDownCameraController>();
         if (cam != null)
@@ -179,7 +180,9 @@ public class SaveManager : MonoBehaviour
 
     private void Apply(SaveData d)
     {
-        if (d.version > 2) Debug.LogWarning("SaveManager: save was made by a newer version of the game.");
+        if (d.version > 3) Debug.LogWarning("SaveManager: save was made by a newer version of the game.");
+
+        DefinitionRegistry.Rebuild();
 
         if (BuildManager.Instance != null) BuildManager.Instance.CancelPlacement();
         ClearWorld();
@@ -192,7 +195,7 @@ public class SaveManager : MonoBehaviour
         if (UIManager.Instance != null)
         {
             UIManager.Instance.HideInspector();
-            if (d.hotbar != null && d.hotbar.Count > 0) UIManager.Instance.SetHotbarFromNames(d.hotbar);
+            if (d.hotbar != null && d.hotbar.Count > 0) UIManager.Instance.SetHotbarFromIds(d.hotbar);
         }
 
         if (d.hasCamera)
@@ -223,7 +226,7 @@ public class SaveManager : MonoBehaviour
             if (!techs.TryGetValue(tp.tech, out TechDefinition t)) continue;
             foreach (ItemCountSave ic in tp.items)
             {
-                ItemDefinition item = FindCostItem(t, ic.item);
+                ItemDefinition item = DefinitionRegistry.GetItem(ic.item);
                 if (item != null) rm.RestoreDelivered(t, item, ic.count);
             }
         }
@@ -235,61 +238,16 @@ public class SaveManager : MonoBehaviour
         rm.NotifyRestored();
     }
 
-    private static ItemDefinition FindCostItem(TechDefinition t, string itemName)
-    {
-        foreach (var c in t.cost)
-            if (c != null && c.item != null && c.item.name == itemName) return c.item;
-        return null;
-    }
-
-    /// <summary>Every ItemDefinition reachable from buildings (miners, recipes) and tech costs, by asset name.</summary>
-    private static Dictionary<string, ItemDefinition> BuildItemLookup()
-    {
-        var map = new Dictionary<string, ItemDefinition>();
-
-        void Add(ItemDefinition i) { if (i != null) map[i.name] = i; }
-
-        if (BuildManager.Instance != null)
-        {
-            foreach (var def in BuildManager.Instance.availableBuildings)
-            {
-                if (def == null || def.prefab == null) continue;
-                if (def.prefab is Miner m)
-                {
-                    foreach (var i in m.availableItems) Add(i);
-                    Add(m.producedItem);
-                }
-                else if (def.prefab is Processor p)
-                {
-                    foreach (var r in p.GetAllRecipes()) { Add(r.inputItem); Add(r.outputItem); }
-                }
-            }
-        }
-
-        if (ResearchManager.Instance != null)
-            foreach (var t in ResearchManager.Instance.allTechs)
-                if (t != null) foreach (var c in t.cost) if (c != null) Add(c.item);
-
-        return map;
-    }
-
     private void ApplyBuildings(SaveData d)
     {
         var grid = GridManager.Instance;
         if (grid == null || BuildManager.Instance == null) return;
 
-        var defs = new Dictionary<string, BuildingDefinition>();
-        foreach (var def in BuildManager.Instance.availableBuildings)
-            if (def != null) defs[def.name] = def;
-
-        var items = BuildItemLookup();
-        System.Func<string, ItemDefinition> find = n =>
-            !string.IsNullOrEmpty(n) && items.TryGetValue(n, out ItemDefinition it) ? it : null;
-
         var cells = new List<Vector2Int>();
         foreach (BuildingSave bs in d.buildings)
         {
-            if (!defs.TryGetValue(bs.definition, out BuildingDefinition def) || def.prefab == null)
+            BuildingDefinition def = DefinitionRegistry.GetBuilding(bs.definition);
+            if (def == null || def.prefab == null)
             {
                 Debug.LogWarning("SaveManager: unknown building '" + bs.definition + "' skipped.");
                 continue;
@@ -306,7 +264,7 @@ public class SaveManager : MonoBehaviour
 
             FactoryBuilding instance = Instantiate(def.prefab);
             instance.Initialize(anchor, facing, def);
-            instance.RestoreState(bs, find); // items in transit, machine progress
+            instance.RestoreState(bs, DefinitionRegistry.GetItem); // items in transit, machine progress
         }
     }
 }

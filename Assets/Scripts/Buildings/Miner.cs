@@ -69,7 +69,7 @@ public class Miner : FactoryBuilding
     public override void CaptureState(BuildingSave s)
     {
         base.CaptureState(s);
-        if (producedItem != null) s.item = producedItem.name;
+        if (producedItem != null) s.item = producedItem.SaveKey;
         s.timer = timer;
     }
 
@@ -81,7 +81,7 @@ public class Miner : FactoryBuilding
         {
             ItemDefinition it = null;
             foreach (var a in availableItems)
-                if (a != null && a.name == s.item) { it = a; break; }
+                if (a != null && a.Matches(s.item)) { it = a; break; }
             if (it == null) it = findItem(s.item);
             if (it != null) SetProducedItem(it);
         }

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6605e02b4011e546a9ce3bc2e444011, type: 3}
   m_Name: Item_IronOre
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
+  id: I04
   itemName: IronOre
   color: {r: 0.4433962, g: 0.29943204, b: 0.26143643, a: 1}
   sellValue: 2

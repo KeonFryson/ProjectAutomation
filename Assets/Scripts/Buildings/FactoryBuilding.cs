@@ -104,7 +104,7 @@ public abstract class FactoryBuilding : MonoBehaviour
     {
         if (heldItem != null && heldItem.Definition != null)
         {
-            s.held = heldItem.Definition.name;
+            s.held = heldItem.Definition.SaveKey;
             s.progress = moveProgress;
         }
     }

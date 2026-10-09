@@ -5,8 +5,10 @@ using UnityEngine;
 /// Create via: Assets > Create > Box Factory > Item Definition
 /// </summary>
 [CreateAssetMenu(fileName = "NewItem", menuName = "Box Factory/Item Definition")]
-public class ItemDefinition : ScriptableObject
+public class ItemDefinition : GameDefinition
 {
+    public override string IdPrefix => "I";
+
     public string itemName = "Item";
 
     [Tooltip("Color of the small square used to represent this item in the world.")]

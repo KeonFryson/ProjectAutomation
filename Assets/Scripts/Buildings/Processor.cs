@@ -93,10 +93,10 @@ public class Processor : FactoryBuilding
 
     public override void CaptureState(BuildingSave s)
     {
-        base.CaptureState(s); // finished product waiting to leave
+        base.CaptureState(s);
         if (hasInputBuffered && activeRecipe != null)
         {
-            s.recipe = activeRecipe.name;
+            s.recipe = activeRecipe.inputItem != null ? activeRecipe.inputItem.SaveKey : activeRecipe.name;
             s.timer = processTimer;
         }
     }
@@ -108,7 +108,8 @@ public class Processor : FactoryBuilding
         if (string.IsNullOrEmpty(s.recipe)) return;
         foreach (var r in GetAllRecipes())
         {
-            if (r.name != s.recipe) continue;
+            bool match = (r.inputItem != null && r.inputItem.Matches(s.recipe)) || r.name == s.recipe;
+            if (!match) continue;
             activeRecipe = r;
             hasInputBuffered = true;
             processTimer = Mathf.Max(0f, s.timer);

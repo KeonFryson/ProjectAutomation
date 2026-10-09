@@ -13,6 +13,8 @@ using UnityEngine;
 /// duplicate, delete and edit assets in one window. Also creates building
 /// prefabs, wires items/recipes into Miner/Processor prefabs, registers things
 /// in the scene managers, and validates the whole project.
+/// Items and buildings show their auto-assigned ID (I01, B01, ...) in the list
+/// and can be searched by it.
 ///
 /// Put this file in a folder named "Editor" (e.g. Assets/Editor).
 /// </summary>
@@ -123,6 +125,12 @@ public class BoxFactoryContentEditor : EditorWindow
         return Color.gray;
     }
 
+    /// <summary>The ID shown in the list ("" for assets without one, like recipes and techs).</summary>
+    private static string IdOf(UnityEngine.Object o)
+    {
+        return o is GameDefinition g && !string.IsNullOrEmpty(g.Id) ? g.Id : "";
+    }
+
     private Type CurrentType
     {
         get
@@ -224,8 +232,12 @@ public class BoxFactoryContentEditor : EditorWindow
         listScroll = EditorGUILayout.BeginScrollView(listScroll, "box");
         foreach (var obj in CurrentAssets())
         {
-            if (!string.IsNullOrEmpty(search) &&
-                obj.name.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0) continue;
+            if (!string.IsNullOrEmpty(search))
+            {
+                bool hit = obj.name.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                           || IdOf(obj).IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+                if (!hit) continue;
+            }
             DrawListRow(obj);
         }
         EditorGUILayout.EndScrollView();
@@ -249,7 +261,10 @@ public class BoxFactoryContentEditor : EditorWindow
         Rect r = EditorGUILayout.GetControlRect(false, 22f);
         if (obj == selected) EditorGUI.DrawRect(r, new Color(0.24f, 0.48f, 0.9f, 0.35f));
         EditorGUI.DrawRect(new Rect(r.x + 2f, r.y + 3f, 16f, 16f), ColorOf(obj));
-        GUI.Label(new Rect(r.x + 24f, r.y, r.width - 24f, r.height), obj.name);
+
+        string id = IdOf(obj);
+        string label = id.Length > 0 ? id + "   " + obj.name : obj.name;
+        GUI.Label(new Rect(r.x + 24f, r.y, r.width - 24f, r.height), label);
 
         if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition))
         {
@@ -314,6 +329,9 @@ public class BoxFactoryContentEditor : EditorWindow
         AssetDatabase.CreateAsset(asset, path);
         AssetDatabase.SaveAssets();
 
+        // Items and buildings get their ID (I01, B01, ...) right away.
+        IdAssigner.EnsureUnique(path);
+
         if (autoRegister)
         {
             if (asset is BuildingDefinition bd) RegisterBuilding(bd);
@@ -357,6 +375,7 @@ public class BoxFactoryContentEditor : EditorWindow
             string copy = AssetDatabase.GenerateUniqueAssetPath(path);
             AssetDatabase.CopyAsset(path, copy);
             AssetDatabase.SaveAssets();
+            IdAssigner.EnsureUnique(copy); // the copy must not share the original's ID
             Select(AssetDatabase.LoadMainAssetAtPath(copy));
             GUIUtility.ExitGUI();
         }
@@ -627,6 +646,16 @@ public class BoxFactoryContentEditor : EditorWindow
         if (FindFirstObjectByType<GridManager>() == null) Add(MessageType.Error, "No GridManager in the scene.");
         if (FindFirstObjectByType<EconomyManager>() == null) Add(MessageType.Error, "No EconomyManager in the scene.");
         if (FindFirstObjectByType<UIManager>() == null) Add(MessageType.Warning, "No UIManager in the scene.");
+
+        // IDs: every item/building needs a unique one, or saves can't tell them apart.
+        foreach (var i in items)
+            if (string.IsNullOrEmpty(i.Id)) Add(MessageType.Warning, "Item '" + i.name + "' has no ID yet (Box Factory > Assign Missing IDs).");
+        foreach (var b in buildings)
+            if (string.IsNullOrEmpty(b.Id)) Add(MessageType.Warning, "Building '" + b.name + "' has no ID yet (Box Factory > Assign Missing IDs).");
+        foreach (var dup in items.Where(i => !string.IsNullOrEmpty(i.Id)).GroupBy(i => i.Id).Where(g => g.Count() > 1))
+            Add(MessageType.Error, "Items share the ID " + dup.Key + ": " + string.Join(", ", dup.Select(a => a.name)));
+        foreach (var dup in buildings.Where(b => !string.IsNullOrEmpty(b.Id)).GroupBy(b => b.Id).Where(g => g.Count() > 1))
+            Add(MessageType.Error, "Buildings share the ID " + dup.Key + ": " + string.Join(", ", dup.Select(a => a.name)));
 
         // Items that something can actually produce
         var producible = new HashSet<ItemDefinition>();

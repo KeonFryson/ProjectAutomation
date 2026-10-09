@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2213df4dd8ee3e94a9310ce575dd4f5f, type: 3}
   m_Name: ResearchLab
   m_EditorClassIdentifier: Assembly-CSharp::BuildingDefinition
+  id: B04
   displayName: ResearchLab
   description: 
   category: Production
@@ -22,3 +23,9 @@ MonoBehaviour:
   sellMultiplier: 1
   unlockedByDefault: 1
   iconColor: {r: 0, g: 1, b: 0.7539928, a: 1}
+  sprite: {fileID: 0}
+  rotateSpriteWithFacing: 1
+  spriteUp: {fileID: 0}
+  spriteRight: {fileID: 0}
+  spriteDown: {fileID: 0}
+  spriteLeft: {fileID: 0}

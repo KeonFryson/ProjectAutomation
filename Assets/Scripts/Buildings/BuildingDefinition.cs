@@ -7,8 +7,10 @@ using UnityEngine;
 /// Create via: Assets > Create > Box Factory > Building Definition
 /// </summary>
 [CreateAssetMenu(fileName = "NewBuilding", menuName = "Box Factory/Building Definition")]
-public class BuildingDefinition : ScriptableObject
+public class BuildingDefinition : GameDefinition
 {
+    public override string IdPrefix => "B";
+
     public string displayName = "Building";
 
     [TextArea, Tooltip("Shown in the build menu tooltip.")]

@@ -688,23 +688,23 @@ public class UIManager : MonoBehaviour
         SaveHotbar();
     }
 
-    
-    public string[] GetHotbarDefinitionNames()
+    /// <summary>Building ID (e.g. "B02") per hotbar slot, "" = empty. Used by the save system.</summary>
+    public string[] GetHotbarIds()
     {
-        var names = new string[hotbarViews.Count];
-        for (int i = 0; i < names.Length; i++)
-            names[i] = hotbarViews[i].Def != null ? hotbarViews[i].Def.name : "";
-        return names;
+        var ids = new string[hotbarViews.Count];
+        for (int i = 0; i < ids.Length; i++)
+            ids[i] = hotbarViews[i].Def != null ? hotbarViews[i].Def.SaveKey : "";
+        return ids;
     }
 
-    public void SetHotbarFromNames(IList<string> names)
+    /// <summary>Restores the hotbar from building IDs (old saves with asset names also work).</summary>
+    public void SetHotbarFromIds(IList<string> ids)
     {
-        List<BuildingDefinition> defs = BuildManager.Instance != null ? BuildManager.Instance.availableBuildings : null;
         for (int i = 0; i < hotbarViews.Count; i++)
         {
             BuildingDefinition d = null;
-            if (defs != null && names != null && i < names.Count && !string.IsNullOrEmpty(names[i]))
-                d = defs.Find(x => x != null && x.name == names[i]);
+            if (ids != null && i < ids.Count && !string.IsNullOrEmpty(ids[i]))
+                d = DefinitionRegistry.GetBuilding(ids[i]);
             hotbarViews[i].Def = d;
         }
         RebuildHotbar(); // also drops anything not unlocked

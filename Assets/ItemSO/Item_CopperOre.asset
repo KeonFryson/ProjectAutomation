@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6605e02b4011e546a9ce3bc2e444011, type: 3}
   m_Name: Item_CopperOre
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
+  id: I02
   itemName: CopperOre
   color: {r: 0.5660378, g: 0.3620775, b: 0.22160912, a: 1}
   sellValue: 2

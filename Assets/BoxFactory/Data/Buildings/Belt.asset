@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2213df4dd8ee3e94a9310ce575dd4f5f, type: 3}
   m_Name: Belt
   m_EditorClassIdentifier: Assembly-CSharp::BuildingDefinition
+  id: B01
   displayName: Belt
   description: 
   category: Logistics
