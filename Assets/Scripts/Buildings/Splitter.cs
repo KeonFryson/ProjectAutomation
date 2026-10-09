@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -167,5 +168,33 @@ public class Splitter : FactoryBuilding
             if (laneItem[i] != null) { laneItem[i].Release(); laneItem[i] = null; }
         }
         base.Demolish();
+    }
+
+    // ---- Save / load ----
+
+    public override void CaptureState(BuildingSave s)
+    {
+        base.CaptureState(s);
+        s.nextOut = nextOut;
+        for (int i = 0; i < Lanes; i++)
+        {
+            bool has = laneItem[i] != null && laneItem[i].Definition != null;
+            s.laneItems.Add(has ? laneItem[i].Definition.name : "");
+            s.laneProgress.Add(has ? laneProgress[i] : 0f);
+        }
+    }
+
+    public override void RestoreState(BuildingSave s, Func<string, ItemDefinition> findItem)
+    {
+        base.RestoreState(s, findItem);
+        nextOut = Mathf.Clamp(s.nextOut, 0, Lanes - 1);
+
+        for (int i = 0; i < Lanes && i < s.laneItems.Count; i++)
+        {
+            ItemDefinition def = findItem(s.laneItems[i]);
+            if (def == null) continue;
+            laneItem[i] = ItemVisual.Spawn(def, EntryPos(i));
+            laneProgress[i] = (i < s.laneProgress.Count) ? Mathf.Clamp01(s.laneProgress[i]) : 0f;
+        }
     }
 }

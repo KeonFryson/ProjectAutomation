@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -85,6 +86,33 @@ public class Processor : FactoryBuilding
                 moveProgress = 0f;
                 activeRecipe = null;
             }
+        }
+    }
+
+    // ---- Save / load ----
+
+    public override void CaptureState(BuildingSave s)
+    {
+        base.CaptureState(s); // finished product waiting to leave
+        if (hasInputBuffered && activeRecipe != null)
+        {
+            s.recipe = activeRecipe.name;
+            s.timer = processTimer;
+        }
+    }
+
+    public override void RestoreState(BuildingSave s, Func<string, ItemDefinition> findItem)
+    {
+        base.RestoreState(s, findItem);
+
+        if (string.IsNullOrEmpty(s.recipe)) return;
+        foreach (var r in GetAllRecipes())
+        {
+            if (r.name != s.recipe) continue;
+            activeRecipe = r;
+            hasInputBuffered = true;
+            processTimer = Mathf.Max(0f, s.timer);
+            break;
         }
     }
 }

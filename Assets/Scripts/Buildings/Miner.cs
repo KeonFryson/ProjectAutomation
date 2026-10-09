@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -61,5 +62,30 @@ public class Miner : FactoryBuilding
     public override bool TryAcceptInput(ItemVisual item)
     {
         return false; // miners only produce, never receive
+    }
+
+    // ---- Save / load ----
+
+    public override void CaptureState(BuildingSave s)
+    {
+        base.CaptureState(s);
+        if (producedItem != null) s.item = producedItem.name;
+        s.timer = timer;
+    }
+
+    public override void RestoreState(BuildingSave s, Func<string, ItemDefinition> findItem)
+    {
+        base.RestoreState(s, findItem);
+
+        if (!string.IsNullOrEmpty(s.item))
+        {
+            ItemDefinition it = null;
+            foreach (var a in availableItems)
+                if (a != null && a.name == s.item) { it = a; break; }
+            if (it == null) it = findItem(s.item);
+            if (it != null) SetProducedItem(it);
+        }
+
+        timer = Mathf.Clamp(s.timer, 0f, productionInterval);
     }
 }

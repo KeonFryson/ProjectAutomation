@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -92,6 +93,31 @@ public abstract class FactoryBuilding : MonoBehaviour
         SetupVisuals();
 
         foreach (var c in cells) GridManager.Instance.Register(c, this);
+    }
+
+    // ---------------------------------------------------------------
+    // Save / load (override in subclasses that carry extra state)
+    // ---------------------------------------------------------------
+
+    /// <summary>Writes the item currently being carried. Subclasses call base and add their own state.</summary>
+    public virtual void CaptureState(BuildingSave s)
+    {
+        if (heldItem != null && heldItem.Definition != null)
+        {
+            s.held = heldItem.Definition.name;
+            s.progress = moveProgress;
+        }
+    }
+
+    /// <summary>Called right after Initialize when loading a save. findItem maps an item asset name to its definition.</summary>
+    public virtual void RestoreState(BuildingSave s, Func<string, ItemDefinition> findItem)
+    {
+        if (string.IsNullOrEmpty(s.held)) return;
+        ItemDefinition def = findItem(s.held);
+        if (def == null) return;
+
+        heldItem = ItemVisual.Spawn(def, transform.position);
+        moveProgress = Mathf.Clamp01(s.progress);
     }
 
     private void SetupVisuals()

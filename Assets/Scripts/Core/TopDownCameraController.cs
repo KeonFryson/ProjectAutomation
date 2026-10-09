@@ -279,4 +279,21 @@ public class TopDownCameraController : MonoBehaviour
         }
         transform.position = pos;
     }
+
+    public Vector2 PlanePosition
+    {
+        get { Vector3 p = transform.position; return useXYPlane ? new Vector2(p.x, p.y) : new Vector2(p.x, p.z); }
+    }
+    public float OrthoSize => targetOrthoSize;
+
+    public void SetView(Vector2 planePos, float orthoSize)
+    {
+        FocusOn(useXYPlane ? new Vector3(planePos.x, planePos.y, 0f) : new Vector3(planePos.x, 0f, planePos.y));
+        if (cam != null && cam.orthographic && orthoSize > 0f)
+        {
+            targetOrthoSize = Mathf.Clamp(orthoSize, minOrthoSize, maxOrthoSize);
+            cam.orthographicSize = targetOrthoSize;
+            currentOrthoSizeVelocity = 0f;
+        }
+    }
 }

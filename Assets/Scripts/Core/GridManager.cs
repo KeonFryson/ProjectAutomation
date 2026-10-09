@@ -51,4 +51,10 @@ public class GridManager : MonoBehaviour
     {
         buildings.Remove(cell);
     }
+
+    /// <summary>Every distinct building on the grid (multi-cell buildings appear once). Returns a copy.</summary>
+    public List<FactoryBuilding> GetAllBuildings()
+    {
+        return new List<FactoryBuilding>(new HashSet<FactoryBuilding>(buildings.Values));
+    }
 }

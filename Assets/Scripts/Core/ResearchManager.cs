@@ -126,4 +126,51 @@ public class ResearchManager : MonoBehaviour
         OnResearchChanged?.Invoke();
         return true;
     }
+
+    // ---------------------------------------------------------------
+    // Save / load support
+    // ---------------------------------------------------------------
+
+    public IEnumerable<TechDefinition> CompletedTechs => completed;
+
+    public IEnumerable<KeyValuePair<TechDefinition, Dictionary<ItemDefinition, int>>> AllDelivered => delivered;
+
+    /// <summary>Wipes all progress (call NotifyRestored afterwards so the UI refreshes).</summary>
+    public void ResetState()
+    {
+        completed.Clear();
+        unlocked.Clear();
+        delivered.Clear();
+        Current = null;
+    }
+
+    public void RestoreCompleted(TechDefinition t)
+    {
+        if (t == null) return;
+        completed.Add(t);
+        foreach (var b in t.unlocks)
+            if (b != null) unlocked.Add(b);
+    }
+
+    public void RestoreDelivered(TechDefinition t, ItemDefinition item, int count)
+    {
+        if (t == null || item == null || count <= 0) return;
+        if (!delivered.TryGetValue(t, out var d))
+        {
+            d = new Dictionary<ItemDefinition, int>();
+            delivered[t] = d;
+        }
+        d[item] = count;
+    }
+
+    public void RestoreCurrent(TechDefinition t)
+    {
+        Current = t;
+    }
+
+    public void NotifyRestored()
+    {
+        OnTechCompleted?.Invoke();
+        OnResearchChanged?.Invoke();
+    }
 }

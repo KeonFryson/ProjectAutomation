@@ -41,4 +41,11 @@ public class EconomyManager : MonoBehaviour
         OnMoneyChanged?.Invoke(Money);
         return true;
     }
+
+    /// <summary>Used by the save system to restore a saved balance.</summary>
+    public void SetMoney(int amount)
+    {
+        Money = Mathf.Max(0, amount);
+        OnMoneyChanged?.Invoke(Money);
+    }
 }

@@ -125,7 +125,9 @@ public class UIManager : MonoBehaviour
     public bool IsTechOpen => techWindow != null && techWindow.Root.activeSelf;
     /// <summary>True while a big window is open (world clicks should be ignored).</summary>
     public bool IsMenuOpen => IsBuildMenuOpen || IsTechOpen;
-
+    public bool IsInspectorOpen => inspectorWindow != null && inspectorWindow.Root.activeSelf;
+    private void LoadHotbar() { RebuildHotbar(); }
+    private void SaveHotbar() { }
     void Awake()
     {
         Instance = this;
@@ -686,25 +688,26 @@ public class UIManager : MonoBehaviour
         SaveHotbar();
     }
 
-    private void LoadHotbar()
+    
+    public string[] GetHotbarDefinitionNames()
     {
-        if (BuildManager.Instance == null) return;
-        var defs = BuildManager.Instance.availableBuildings;
-        for (int i = 0; i < hotbarViews.Count; i++)
-        {
-            int idx = PlayerPrefs.GetInt(HotbarPrefKey + i, -1);
-            hotbarViews[i].Def = idx >= 0 && idx < defs.Count ? defs[idx] : null;
-        }
-        RebuildHotbar();
+        var names = new string[hotbarViews.Count];
+        for (int i = 0; i < names.Length; i++)
+            names[i] = hotbarViews[i].Def != null ? hotbarViews[i].Def.name : "";
+        return names;
     }
 
-    private void SaveHotbar()
+    public void SetHotbarFromNames(IList<string> names)
     {
-        if (BuildManager.Instance == null) return;
-        var defs = BuildManager.Instance.availableBuildings;
+        List<BuildingDefinition> defs = BuildManager.Instance != null ? BuildManager.Instance.availableBuildings : null;
         for (int i = 0; i < hotbarViews.Count; i++)
-            PlayerPrefs.SetInt(HotbarPrefKey + i, hotbarViews[i].Def != null ? defs.IndexOf(hotbarViews[i].Def) : -1);
-        PlayerPrefs.Save();
+        {
+            BuildingDefinition d = null;
+            if (defs != null && names != null && i < names.Count && !string.IsNullOrEmpty(names[i]))
+                d = defs.Find(x => x != null && x.name == names[i]);
+            hotbarViews[i].Def = d;
+        }
+        RebuildHotbar(); // also drops anything not unlocked
     }
 
     /// <summary>Refreshes slot visuals from the assignments (also drops buildings that are no longer unlocked).</summary>
