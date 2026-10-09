@@ -12,6 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ebff7a4e7fe645d4baf0f0cc5672ad37, type: 3}
   m_Name: IronBar_to_Gear
   m_EditorClassIdentifier: Assembly-CSharp::RecipeDefinition
-  inputItem: {fileID: 11400000, guid: 02ff936bcde0e5745a196e2e459d96fe, type: 2}
-  outputItem: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
+  inputs:
+  - item: {fileID: 11400000, guid: 02ff936bcde0e5745a196e2e459d96fe, type: 2}
+    amount: 1
+  outputs:
+  - item: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
+    amount: 1
   processTime: 3
+  inputItem: {fileID: 0}
+  outputItem: {fileID: 0}

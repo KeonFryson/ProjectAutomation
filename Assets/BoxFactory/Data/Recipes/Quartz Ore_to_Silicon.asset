@@ -12,6 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ebff7a4e7fe645d4baf0f0cc5672ad37, type: 3}
   m_Name: Quartz Ore_to_Silicon
   m_EditorClassIdentifier: Assembly-CSharp::RecipeDefinition
-  inputItem: {fileID: 11400000, guid: fbe695bff94fe2f4e929eec6c6d3416d, type: 2}
-  outputItem: {fileID: 11400000, guid: 93d46ae36422d9446a5f74a644a4e8e8, type: 2}
+  inputs:
+  - item: {fileID: 11400000, guid: fbe695bff94fe2f4e929eec6c6d3416d, type: 2}
+    amount: 1
+  outputs:
+  - item: {fileID: 11400000, guid: 93d46ae36422d9446a5f74a644a4e8e8, type: 2}
+    amount: 1
   processTime: 3
+  inputItem: {fileID: 0}
+  outputItem: {fileID: 0}

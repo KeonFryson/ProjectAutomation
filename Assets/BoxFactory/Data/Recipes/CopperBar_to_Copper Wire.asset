@@ -12,6 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ebff7a4e7fe645d4baf0f0cc5672ad37, type: 3}
   m_Name: CopperBar_to_Copper Wire
   m_EditorClassIdentifier: Assembly-CSharp::RecipeDefinition
-  inputItem: {fileID: 11400000, guid: 7e7f549f56686c4458b181f92c192028, type: 2}
-  outputItem: {fileID: 11400000, guid: ecf3461d41e125f4facffa2f13aba858, type: 2}
+  inputs:
+  - item: {fileID: 11400000, guid: 7e7f549f56686c4458b181f92c192028, type: 2}
+    amount: 1
+  outputs:
+  - item: {fileID: 11400000, guid: ecf3461d41e125f4facffa2f13aba858, type: 2}
+    amount: 1
   processTime: 2.5
+  inputItem: {fileID: 0}
+  outputItem: {fileID: 0}

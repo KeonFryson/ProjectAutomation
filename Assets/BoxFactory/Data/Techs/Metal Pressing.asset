@@ -15,8 +15,7 @@ MonoBehaviour:
   displayName: Metal Pressing
   description: 
   prerequisites:
-  - {fileID: 11400000, guid: e7ab6ed58fde80849b21dde7a8e3116f, type: 2}
-  - {fileID: 11400000, guid: 200df0656a96bf94d921ed5defcf6f85, type: 2}
+  - {fileID: 11400000, guid: a093dfbf4b23ed149a2728b3f1c04def, type: 2}
   cost:
   - item: {fileID: 11400000, guid: 02ff936bcde0e5745a196e2e459d96fe, type: 2}
     amount: 60

@@ -43,7 +43,10 @@ public class UIManager : MonoBehaviour
         public Image Icon;
         public Image Overlay; // second layer, used for the belt's static arrows
         public ItemDefinition Item;
+        public Text Count;    // optional amount label in the bottom-right corner
     }
+
+    private class FlowSlot { public ItemDefinition Item; public int Amount; public Slot Slot; }
 
     private class UiWindow
     {
@@ -119,6 +122,20 @@ public class UIManager : MonoBehaviour
     private Slot liveOutputSlot;
     private RectTransform liveBarFill;
     private readonly List<RecipeRow> recipeRows = new List<RecipeRow>();
+
+    // Processor window: live flow diagram (inputs -> progress -> outputs)
+    private RectTransform flowInputsRow;
+    private RectTransform flowOutputsRow;
+    private Text flowStatusText;
+    private Text queueText;
+    private RecipeDefinition flowRecipe;
+    private readonly List<FlowSlot> flowInputs = new List<FlowSlot>();
+    private readonly List<FlowSlot> flowOutputs = new List<FlowSlot>();
+
+    // Lab window: cost of the current research
+    private RectTransform labCostParent;
+    private TechDefinition labTech;
+    private readonly List<CostView> labCosts = new List<CostView>();
 
     public bool IsBuildMenuOpen => menuWindow != null && menuWindow.Root.activeSelf;
     public bool IsTechOpen => techWindow != null && techWindow.Root.activeSelf;
@@ -376,27 +393,58 @@ public class UIManager : MonoBehaviour
 
     private void BuildInspectorPanel(Transform parent)
     {
-        inspectorWindow = CreateWindow(parent, "MachineWindow", "Building", new Vector2(320f, 100f),
-            new Vector2(-14f, -14f), new Vector2(1f, 1f), true, HideInspector);
+        // Big window in the middle of the screen, like the build menu and tech tree.
+        inspectorWindow = CreateWindow(parent, "MachineWindow", "Building", new Vector2(820f, 620f),
+            Vector2.zero, new Vector2(0.5f, 0.5f), false, HideInspector);
         var body = inspectorWindow.Body;
 
-        inspectorStatsText = CreateText(body, "Stats", "", 13, FontStyle.Normal, TextAnchor.MiddleLeft, 22f);
+        inspectorStatsText = CreateText(body, "Stats", "", 14, FontStyle.Normal, TextAnchor.MiddleLeft, 24f);
         inspectorStatsText.color = DimText;
 
+        // Scrollable content area: machine widgets are built into 'Options'.
+        var scrollGo = new GameObject("OptionsScroll");
+        scrollGo.transform.SetParent(body, false);
+        scrollGo.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.03f);
+        var sle = scrollGo.AddComponent<LayoutElement>();
+        sle.flexibleHeight = 1f;
+        sle.preferredHeight = 300f;
+        sle.minHeight = 150f;
+        var scroll = scrollGo.AddComponent<ScrollRect>();
+
+        var viewport = new GameObject("Viewport");
+        viewport.transform.SetParent(scrollGo.transform, false);
+        var vrt = viewport.AddComponent<RectTransform>();
+        Stretch(vrt, 0f);
+        viewport.AddComponent<RectMask2D>();
+
         var optionsGo = new GameObject("Options");
-        optionsGo.transform.SetParent(body, false);
+        optionsGo.transform.SetParent(viewport.transform, false);
         inspectorOptionsParent = optionsGo.AddComponent<RectTransform>();
+        inspectorOptionsParent.anchorMin = new Vector2(0f, 1f);
+        inspectorOptionsParent.anchorMax = new Vector2(1f, 1f);
+        inspectorOptionsParent.pivot = new Vector2(0.5f, 1f);
+        inspectorOptionsParent.anchoredPosition = Vector2.zero;
+        inspectorOptionsParent.sizeDelta = Vector2.zero;
         var optVlg = optionsGo.AddComponent<VerticalLayoutGroup>();
-        optVlg.spacing = 6f;
+        optVlg.padding = new RectOffset(10, 10, 10, 10);
+        optVlg.spacing = 10f;
         optVlg.childForceExpandWidth = true;
         optVlg.childForceExpandHeight = false;
         optVlg.childControlWidth = true;
         optVlg.childControlHeight = true;
+        optionsGo.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        inspectorTooltipText = CreateText(body, "Tooltip", "", 13, FontStyle.Italic, TextAnchor.MiddleLeft, 20f);
+        scroll.viewport = vrt;
+        scroll.content = inspectorOptionsParent;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 25f;
+
+        inspectorTooltipText = CreateText(body, "Tooltip", "", 14, FontStyle.Italic, TextAnchor.MiddleLeft, 24f);
         inspectorTooltipText.color = DimText;
 
-        demolishButton = CreateButton(body, "Demolish", ButtonRed, 34f, 14);
+        demolishButton = CreateButton(body, "Demolish", ButtonRed, 38f, 15);
         demolishButton.onClick.AddListener(OnDemolishClicked);
 
         inspectorWindow.Root.SetActive(false);
@@ -1381,46 +1429,96 @@ public class UIManager : MonoBehaviour
         liveProcessor = null;
         liveLab = false;
         labStatusText = null;
+        labCostParent = null;
+        labTech = null;
+        labCosts.Clear();
         liveInputSlot = null;
         liveOutputSlot = null;
         liveBarFill = null;
+        flowInputsRow = null;
+        flowOutputsRow = null;
+        flowStatusText = null;
+        queueText = null;
+        flowRecipe = null;
+        flowInputs.Clear();
+        flowOutputs.Clear();
         recipeRows.Clear();
 
         if (building is Miner miner) BuildMinerWindow(miner);
         else if (building is Processor processor) BuildProcessorWindow(processor);
         else if (building is ResearchLab) BuildLabWindow();
+        else CreateText(inspectorOptionsParent, "Info", "This building has no settings.", 14, FontStyle.Italic, TextAnchor.MiddleLeft, 24f);
 
         RefreshLive();
     }
 
+    /// <summary>A slot with an amount label in its bottom-right corner.</summary>
+    private Slot CreateCountSlot(Transform parent, float size, int fontSize)
+    {
+        var slot = CreateSlot(parent, size);
+        slot.Count = CreateSlotText(slot.Root.transform, "", fontSize, TextAnchor.LowerRight);
+        slot.Count.fontStyle = FontStyle.Bold;
+        return slot;
+    }
+
+    private RectTransform CreateColumn(Transform parent, string objName, TextAnchor align)
+    {
+        var go = new GameObject(objName);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        var vlg = go.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 6f;
+        vlg.childAlignment = align;
+        vlg.childForceExpandWidth = false;
+        vlg.childForceExpandHeight = false;
+        vlg.childControlWidth = true;
+        vlg.childControlHeight = true;
+        return rt;
+    }
+
+    // ---- Lab ----
+
     private void BuildLabWindow()
     {
         liveLab = true;
-        CreateText(inspectorOptionsParent, "Header", "Research Lab", 14, FontStyle.Bold, TextAnchor.MiddleLeft, 22f);
-        labStatusText = CreateText(inspectorOptionsParent, "Status", "", 13, FontStyle.Normal, TextAnchor.UpperLeft, 40f);
+        CreateText(inspectorOptionsParent, "Header", "Research Lab", 18, FontStyle.Bold, TextAnchor.MiddleLeft, 26f);
+        labStatusText = CreateText(inspectorOptionsParent, "Status", "", 14, FontStyle.Normal, TextAnchor.MiddleLeft, 26f);
+        CreateText(inspectorOptionsParent, "Header2", "Items needed for the current research:", 14, FontStyle.Bold, TextAnchor.MiddleLeft, 24f);
+
+        var go = new GameObject("LabCosts");
+        go.transform.SetParent(inspectorOptionsParent, false);
+        labCostParent = go.AddComponent<RectTransform>();
+        var vlg = go.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 6f;
+        vlg.childForceExpandWidth = true;
+        vlg.childForceExpandHeight = false;
+        vlg.childControlWidth = true;
+        vlg.childControlHeight = true;
     }
+
+    // ---- Miner ----
 
     private void BuildMinerWindow(Miner miner)
     {
         liveMiner = miner;
 
-        CreateText(inspectorOptionsParent, "Header", "Mining", 14, FontStyle.Bold, TextAnchor.MiddleLeft, 22f);
+        CreateText(inspectorOptionsParent, "Header", "Mining", 18, FontStyle.Bold, TextAnchor.MiddleLeft, 26f);
 
-        var row = CreateRow(inspectorOptionsParent, 56f);
-        liveInputSlot = CreateSlot(row, 52f);
+        var row = CreateRow(inspectorOptionsParent, 76f);
+        liveInputSlot = CreateSlot(row, 72f);
         liveBarFill = CreateProgressBar(row);
-        liveOutputSlot = CreateSlot(row, 52f);
+        liveOutputSlot = CreateSlot(row, 72f);
         AddSlotHover(liveInputSlot, "Mining: ");
         AddSlotHover(liveOutputSlot, "Output: ");
 
-        CreateText(inspectorOptionsParent, "Header2", "Choose resource:", 14, FontStyle.Bold, TextAnchor.MiddleLeft, 22f);
+        CreateText(inspectorOptionsParent, "Header2", "Choose resource:", 16, FontStyle.Bold, TextAnchor.MiddleLeft, 24f);
 
-        var grid = CreateSlotGrid(inspectorOptionsParent, 5, 48f, 6f);
+        var grid = CreateSlotGrid(inspectorOptionsParent, 8, 64f, 8f);
         foreach (var item in miner.availableItems)
         {
             if (item == null) continue;
 
-            var slot = CreateSlot(grid, 48f);
+            var slot = CreateSlot(grid, 64f);
             SetSlot(slot, item, miner.producedItem == item);
 
             var btn = slot.Root.AddComponent<Button>();
@@ -1439,41 +1537,131 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    // ---- Processor ----
+
     private void BuildProcessorWindow(Processor processor)
     {
         liveProcessor = processor;
 
-        CreateText(inspectorOptionsParent, "Header", "Processing", 14, FontStyle.Bold, TextAnchor.MiddleLeft, 22f);
+        CreateText(inspectorOptionsParent, "Header", "Processing", 18, FontStyle.Bold, TextAnchor.MiddleLeft, 26f);
 
-        var row = CreateRow(inspectorOptionsParent, 56f);
-        liveInputSlot = CreateSlot(row, 52f);
-        liveBarFill = CreateProgressBar(row);
-        liveOutputSlot = CreateSlot(row, 52f);
-        AddSlotHover(liveInputSlot, "Input: ");
-        AddSlotHover(liveOutputSlot, "Output: ");
+        // Live flow diagram: [inputs]  ->  progress  ->  [outputs]
+        var flow = new GameObject("Flow");
+        flow.transform.SetParent(inspectorOptionsParent, false);
+        flow.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.05f);
+        flow.AddComponent<LayoutElement>().preferredHeight = 150f;
+        var hlg = flow.AddComponent<HorizontalLayoutGroup>();
+        hlg.padding = new RectOffset(14, 14, 10, 10);
+        hlg.spacing = 16f;
+        hlg.childAlignment = TextAnchor.MiddleCenter;
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = false;
+        hlg.childControlWidth = true;
+        hlg.childControlHeight = true;
 
-        CreateText(inspectorOptionsParent, "Header2", "Recipes:", 14, FontStyle.Bold, TextAnchor.MiddleLeft, 22f);
+        var inCol = CreateColumn(flow.transform, "InputsColumn", TextAnchor.MiddleCenter);
+        CreateText(inCol, "Label", "Inputs  (have / needed)", 13, FontStyle.Bold, TextAnchor.MiddleCenter, 20f);
+        flowInputsRow = CreateRow(inCol, 74f);
 
+        var midCol = CreateColumn(flow.transform, "ProgressColumn", TextAnchor.MiddleCenter);
+        var midLe = midCol.gameObject.AddComponent<LayoutElement>();
+        midLe.flexibleWidth = 1f;
+        midLe.preferredWidth = 220f;
+        CreateText(midCol, "Arrow", "->", 26, FontStyle.Bold, TextAnchor.MiddleCenter, 32f);
+        liveBarFill = CreateProgressBar(midCol);
+        flowStatusText = CreateText(midCol, "Status", "", 13, FontStyle.Normal, TextAnchor.MiddleCenter, 22f);
+        flowStatusText.color = DimText;
+
+        var outCol = CreateColumn(flow.transform, "OutputsColumn", TextAnchor.MiddleCenter);
+        CreateText(outCol, "Label", "Outputs  (per craft)", 13, FontStyle.Bold, TextAnchor.MiddleCenter, 20f);
+        flowOutputsRow = CreateRow(outCol, 74f);
+
+        // What is leaving the machine right now
+        var sendRow = CreateRow(inspectorOptionsParent, 48f);
+        CreateLabel(sendRow, "Leaving machine:", 13, 120f);
+        liveOutputSlot = CreateSlot(sendRow, 40f);
+        AddSlotHover(liveOutputSlot, "On output belt: ");
+        queueText = CreateLabel(sendRow, "", 13, 0f);
+
+        RebuildFlow(processor.ActiveRecipe);
+
+        // All recipes this machine can run
+        CreateText(inspectorOptionsParent, "Header2", "Recipes this machine can run:", 16, FontStyle.Bold, TextAnchor.MiddleLeft, 24f);
         foreach (var r in processor.GetAllRecipes())
         {
-            if (r == null || r.inputItem == null || r.outputItem == null) continue;
-
-            var recipeRow = CreateRow(inspectorOptionsParent, 32f);
-            var bg = recipeRow.gameObject.AddComponent<Image>();
-            bg.color = new Color(1f, 1f, 1f, 0.05f);
-            bg.raycastTarget = false;
-
-            var inSlot = CreateSlot(recipeRow, 28f);
-            SetSlot(inSlot, r.inputItem);
-            CreateLabel(recipeRow, "->", 14, 22f);
-            var outSlot = CreateSlot(recipeRow, 28f);
-            SetSlot(outSlot, r.outputItem);
-            CreateLabel(recipeRow, r.inputItem.itemName + " -> " + r.outputItem.itemName
-                                   + "  (" + r.processTime.ToString("0.#") + "s)", 12, 0f);
-
-            recipeRows.Add(new RecipeRow { Background = bg, Recipe = r });
+            if (r == null || !r.IsValid) continue;
+            recipeRows.Add(BuildRecipeRow(r));
         }
     }
+
+    /// <summary>One recipe line: [2 x icon] + [1 x icon]  ->  [1 x icon]   text (time)</summary>
+    private RecipeRow BuildRecipeRow(RecipeDefinition r)
+    {
+        var row = CreateRow(inspectorOptionsParent, 56f);
+        var bg = row.gameObject.AddComponent<Image>();
+        bg.color = new Color(1f, 1f, 1f, 0.05f);
+        bg.raycastTarget = false;
+        row.GetComponent<HorizontalLayoutGroup>().padding = new RectOffset(8, 8, 4, 4);
+
+        AddStackSlots(row, r.Inputs);
+        CreateLabel(row, "->", 18, 30f);
+        AddStackSlots(row, r.Outputs);
+        CreateLabel(row, r.Describe() + "   (" + r.processTime.ToString("0.#") + "s)", 13, 0f);
+
+        return new RecipeRow { Background = bg, Recipe = r };
+    }
+
+    private void AddStackSlots(Transform row, IReadOnlyList<ItemStack> stacks)
+    {
+        bool first = true;
+        foreach (var st in stacks)
+        {
+            if (st == null || st.item == null) continue;
+            if (!first) CreateLabel(row, "+", 16, 16f);
+            first = false;
+
+            var slot = CreateCountSlot(row, 44f, 12);
+            SetSlot(slot, st.item);
+            slot.Count.text = "x" + Mathf.Max(1, st.amount);
+            AddSlotHover(slot, "");
+        }
+    }
+
+    /// <summary>Rebuilds the input/output slots in the flow diagram for the given recipe (null = idle).</summary>
+    private void RebuildFlow(RecipeDefinition recipe)
+    {
+        flowRecipe = recipe;
+        ClearChildren(flowInputsRow);
+        ClearChildren(flowOutputsRow);
+        flowInputs.Clear();
+        flowOutputs.Clear();
+
+        if (recipe == null)
+        {
+            CreateLabel(flowInputsRow, "Waiting for items", 13, 150f);
+            return;
+        }
+
+        foreach (var st in recipe.Inputs)
+        {
+            if (st == null || st.item == null) continue;
+            var slot = CreateCountSlot(flowInputsRow, 64f, 13);
+            SetSlot(slot, st.item);
+            AddSlotHover(slot, "Input: ");
+            flowInputs.Add(new FlowSlot { Item = st.item, Amount = Mathf.Max(1, st.amount), Slot = slot });
+        }
+        foreach (var st in recipe.Outputs)
+        {
+            if (st == null || st.item == null) continue;
+            var slot = CreateCountSlot(flowOutputsRow, 64f, 13);
+            SetSlot(slot, st.item);
+            slot.Count.text = "x" + Mathf.Max(1, st.amount);
+            AddSlotHover(slot, "Output: ");
+            flowOutputs.Add(new FlowSlot { Item = st.item, Amount = Mathf.Max(1, st.amount), Slot = slot });
+        }
+    }
+
+    // ---- Live updates ----
 
     private void RefreshLive()
     {
@@ -1485,24 +1673,61 @@ public class UIManager : MonoBehaviour
         }
         else if (liveProcessor != null)
         {
-            SetSlot(liveInputSlot, liveProcessor.InputItem);
-            SetSlot(liveOutputSlot, liveProcessor.HeldItemDefinition);
-            SetBar(liveProcessor.Progress01);
-
-            RecipeDefinition active = liveProcessor.ActiveRecipe;
-            foreach (var rr in recipeRows)
-            {
-                rr.Background.color = rr.Recipe == active
-                    ? new Color(0.95f, 0.6f, 0.1f, 0.35f)
-                    : new Color(1f, 1f, 1f, 0.05f);
-            }
+            RefreshProcessorLive();
         }
         else if (liveLab && labStatusText != null)
         {
             var rm = ResearchManager.Instance;
-            labStatusText.text = rm != null && rm.Current != null
-                ? "Researching: " + rm.Current.displayName + " (" + Mathf.RoundToInt(rm.Progress01(rm.Current) * 100f) + "%)"
+            TechDefinition cur = rm != null ? rm.Current : null;
+
+            labStatusText.text = cur != null
+                ? "Researching: " + cur.displayName + " (" + Mathf.RoundToInt(rm.Progress01(cur) * 100f) + "%)"
                 : "No active research. Press [T] to pick one.";
+
+            if (cur != labTech)
+            {
+                labTech = cur;
+                ClearChildren(labCostParent);
+                labCosts.Clear();
+                if (cur != null) BuildCostViews(labCostParent, cur, labCosts, 40f, 14, 0f, 44f);
+            }
+            if (cur != null) UpdateCostViews(labCosts, cur);
+        }
+    }
+
+    private void RefreshProcessorLive()
+    {
+        Processor p = liveProcessor;
+        RecipeDefinition active = p.ActiveRecipe;
+        if (active != flowRecipe) RebuildFlow(active);
+
+        SetBar(p.Progress01);
+
+        foreach (var fs in flowInputs)
+        {
+            int have = p.GetBuffered(fs.Item);
+            fs.Slot.Count.text = have + "/" + fs.Amount;
+            fs.Slot.Count.color = have >= fs.Amount ? new Color(0.5f, 1f, 0.55f) : Color.white;
+        }
+
+        if (p.IsCrafting)
+            flowStatusText.text = "Crafting " + Mathf.RoundToInt(p.Progress01 * 100f) + "%";
+        else if (active != null)
+            flowStatusText.text = p.PendingOutputCount > 0 ? "Sending outputs" : "Collecting inputs";
+        else
+            flowStatusText.text = p.PendingOutputCount > 0 || p.HeldItemDefinition != null
+                ? "Sending outputs" : "Idle - waiting for items";
+
+        SetSlot(liveOutputSlot, p.HeldItemDefinition);
+        queueText.text = p.PendingOutputCount > 0
+            ? p.PendingOutputCount + " more waiting to leave"
+            : (p.HeldItemDefinition != null ? "1 item on the way out" : "nothing");
+
+        foreach (var rr in recipeRows)
+        {
+            rr.Background.color = rr.Recipe == active
+                ? new Color(0.95f, 0.6f, 0.1f, 0.35f)
+                : new Color(1f, 1f, 1f, 0.05f);
         }
     }
 

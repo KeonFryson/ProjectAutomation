@@ -50,7 +50,11 @@ public static class DefinitionRegistry
                 }
                 else if (def.prefab is Processor p)
                 {
-                    foreach (var r in p.GetAllRecipes()) { Add(items, r.inputItem); Add(items, r.outputItem); }
+                    foreach (var r in p.GetAllRecipes())
+                    {
+                        foreach (var s in r.Inputs) if (s != null) Add(items, s.item);
+                        foreach (var s in r.Outputs) if (s != null) Add(items, s.item);
+                    }
                 }
             }
         }

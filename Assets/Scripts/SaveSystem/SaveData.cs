@@ -37,8 +37,13 @@ public class BuildingSave
     public string item;  // Miner: ItemDefinition ID being mined
     public float timer;
 
-    // Processor: recipe currently running ("" = idle)
-    public string recipe; // Processor: input item ID of the running recipe ("" = idle)
+    // Processor: locked recipe asset name ("" = idle). Old saves stored the first input item ID here.
+    public string recipe;
+    public int procVersion;      // 0 = old single-item save, 1 = multi-item
+    public bool crafting;        // craft timer running (uses 'timer')
+    public List<string> inputItems = new List<string>();   // input buffer: ItemDefinition IDs
+    public List<int> inputCounts = new List<int>();        // ...and how many of each
+    public List<string> outputItems = new List<string>();  // finished items waiting to leave
 
     // Splitter
     public int nextOut;

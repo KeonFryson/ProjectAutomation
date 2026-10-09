@@ -116,7 +116,11 @@ public class BoxFactoryContentEditor : EditorWindow
         {
             case ItemDefinition i: return i.color;
             case BuildingDefinition b: return b.iconColor;
-            case RecipeDefinition r: return r.outputItem != null ? r.outputItem.color : Color.gray;
+            case RecipeDefinition r:
+            {
+                var fo = r.FirstOutput;
+                return fo != null ? fo.color : Color.gray;
+            }
             case TechDefinition t:
                 foreach (var b2 in t.unlocks) if (b2 != null) return b2.iconColor;
                 return new Color(0.4f, 0.6f, 0.9f);
@@ -435,22 +439,34 @@ public class BoxFactoryContentEditor : EditorWindow
         bool any = false;
         foreach (var r in LoadAll<RecipeDefinition>())
         {
-            if (r.inputItem != item && r.outputItem != item) continue;
+            bool isIn = r.UsesInput(item), isOut = r.MakesOutput(item);
+            if (!isIn && !isOut) continue;
             any = true;
-            EditorGUILayout.LabelField((r.inputItem == item ? "Input of: " : "Output of: ") + r.name);
+            EditorGUILayout.LabelField((isIn && isOut ? "Input and output of: " : isIn ? "Input of: " : "Output of: ") + r.name);
         }
         if (!any) EditorGUILayout.LabelField("(none)");
     }
 
     private void DrawRecipeExtras(RecipeDefinition recipe)
     {
-        string inName = recipe.inputItem != null ? recipe.inputItem.itemName : "?";
-        string outName = recipe.outputItem != null ? recipe.outputItem.itemName : "?";
-        EditorGUILayout.LabelField(inName + "  ->  " + outName + "   (" + recipe.processTime.ToString("0.#") + "s)", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField(recipe.Describe() + "   (" + recipe.processTime.ToString("0.#") + "s)", EditorStyles.wordWrappedLabel);
 
-        if (recipe.inputItem != null && recipe.outputItem != null && GUILayout.Button("Auto-name file from items"))
+        if (recipe.NeedsMigration)
         {
-            AssetDatabase.RenameAsset(AssetDatabase.GetAssetPath(recipe), recipe.inputItem.itemName + "_to_" + recipe.outputItem.itemName);
+            EditorGUILayout.HelpBox("This recipe still uses the old single input/output fields. They work, but copy them into the lists to edit them.", MessageType.Info);
+            if (GUILayout.Button("Migrate to multi-item lists"))
+            {
+                Undo.RecordObject(recipe, "Migrate recipe");
+                recipe.MigrateLegacy();
+                EditorUtility.SetDirty(recipe);
+                AssetDatabase.SaveAssets();
+                Select(recipe);
+            }
+        }
+
+        if (recipe.IsValid && GUILayout.Button("Auto-name file from items"))
+        {
+            AssetDatabase.RenameAsset(AssetDatabase.GetAssetPath(recipe), RecipeFileName(recipe));
             AssetDatabase.SaveAssets();
         }
 
@@ -468,6 +484,18 @@ public class BoxFactoryContentEditor : EditorWindow
             EditorUtility.SetDirty(p);
             AssetDatabase.SaveAssets();
         }
+    }
+
+    private static string RecipeFileName(RecipeDefinition r)
+    {
+        return NameList(r.Inputs) + "_to_" + NameList(r.Outputs);
+    }
+
+    private static string NameList(IReadOnlyList<ItemStack> list)
+    {
+        var parts = new List<string>();
+        foreach (var s in list) if (s != null && s.item != null) parts.Add(s.item.itemName);
+        return string.Join("+", parts);
     }
 
     private void DrawBuildingExtras(BuildingDefinition def)
@@ -663,14 +691,30 @@ public class BoxFactoryContentEditor : EditorWindow
             foreach (var i in m.availableItems) if (i != null) producible.Add(i);
             if (m.producedItem != null) producible.Add(m.producedItem);
         }
-        foreach (var r in recipes) if (r.outputItem != null) producible.Add(r.outputItem);
+        foreach (var r in recipes)
+            foreach (var st in r.Outputs)
+                if (st != null && st.item != null) producible.Add(st.item);
 
         var usedRecipes = new HashSet<RecipeDefinition>();
         foreach (var p in PrefabsOf<Processor>()) foreach (var r in p.recipes) if (r != null) usedRecipes.Add(r);
+        foreach (var p in PrefabsOf<Processor>())
+        {
+            var seen = new Dictionary<ItemDefinition, RecipeDefinition>();
+            foreach (var r in p.GetAllRecipes())
+                foreach (var st in r.Inputs)
+                {
+                    if (st == null || st.item == null) continue;
+                    if (seen.TryGetValue(st.item, out var other) && other != r)
+                        Add(MessageType.Warning, "Processor '" + p.name + "': recipes '" + other.name + "' and '" + r.name + "' both use '" + st.item.itemName + "'. The first item to arrive picks one, so it may lock to the wrong recipe.");
+                    else seen[st.item] = r;
+                }
+        }
+
         foreach (var r in recipes)
         {
-            if (r.inputItem == null || r.outputItem == null) Add(MessageType.Error, "Recipe '" + r.name + "' is missing its input or output item.");
-            else if (r.inputItem == r.outputItem) Add(MessageType.Warning, "Recipe '" + r.name + "' produces the same item it consumes.");
+            if (!r.IsValid) Add(MessageType.Error, "Recipe '" + r.name + "' needs at least one input and one output item, with no empty slots.");
+            else if (r.Inputs.Count == 1 && r.Outputs.Count == 1 && r.Inputs[0].item == r.Outputs[0].item)
+                Add(MessageType.Warning, "Recipe '" + r.name + "' produces the same item it consumes.");
             if (r.processTime <= 0f) Add(MessageType.Warning, "Recipe '" + r.name + "' has a process time of 0.");
             if (!usedRecipes.Contains(r)) Add(MessageType.Warning, "Recipe '" + r.name + "' is not used by any Processor prefab.");
         }
