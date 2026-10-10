@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ebff7a4e7fe645d4baf0f0cc5672ad37, type: 3}
+  m_Name: Iron Plate+Circuit_to_Logistics Pack
+  m_EditorClassIdentifier: Assembly-CSharp::RecipeDefinition
+  inputs:
+  - item: {fileID: 11400000, guid: c4583a2f3f0a9ed419e482b081befd90, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
+    amount: 1
+  outputs:
+  - item: {fileID: 11400000, guid: 8a60d62782c1f624aa725248de576de4, type: 2}
+    amount: 1
+  processTime: 5
+  inputItem: {fileID: 0}
+  outputItem: {fileID: 0}

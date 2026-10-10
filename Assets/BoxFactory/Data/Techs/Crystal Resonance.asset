@@ -13,13 +13,17 @@ MonoBehaviour:
   m_Name: Crystal Resonance
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
   displayName: Crystal Resonance
-  description: 
+  description: Fabricate Portal Cores.
   prerequisites:
   - {fileID: 11400000, guid: cfecec1825f4fa7468f5ef4b0a95c053, type: 2}
   cost:
-  - item: {fileID: 11400000, guid: 3edb1b07505f5194881a4947d54ef5f1, type: 2}
+  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
     amount: 50
-  - item: {fileID: 11400000, guid: 32d49005741112743b498728620594d3, type: 2}
-    amount: 30
+  - item: {fileID: 11400000, guid: 8a60d62782c1f624aa725248de576de4, type: 2}
+    amount: 50
+  - item: {fileID: 11400000, guid: 4abcbe2475bac2840bba0eccc9cbdf31, type: 2}
+    amount: 40
+  - item: {fileID: 11400000, guid: f3a8310508dd1544387255c8a60822ec, type: 2}
+    amount: 20
   unlocks:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 246650132e800ab4b8b6fdadcdbe106f, type: 2}

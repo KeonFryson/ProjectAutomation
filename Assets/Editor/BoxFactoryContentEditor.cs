@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Experimental.GraphView;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
@@ -57,6 +58,7 @@ public class BoxFactoryContentEditor : EditorWindow
         if (t == typeof(ConveyorBelt) || t == typeof(Splitter)) return "Logistics";
         if (t == typeof(Miner) || t == typeof(Processor)) return "Production";
         if (t == typeof(ResearchLab)) return "Research";
+        if (t == typeof(Portal)) return "Endgame";
         return "Buildings"; // a new building type lands here until you add a line above
     }
 

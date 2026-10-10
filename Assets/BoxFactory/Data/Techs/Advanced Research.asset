@@ -13,13 +13,11 @@ MonoBehaviour:
   m_Name: Advanced Research
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
   displayName: Advanced Research
-  description: 
+  description: Labs that research faster.
   prerequisites:
-  - {fileID: 11400000, guid: 866829111c0c53443ab6eec6f675dcf6, type: 2}
+  - {fileID: 11400000, guid: 4601fca1bdc08ef46b17523b28504961, type: 2}
   cost:
-  - item: {fileID: 11400000, guid: c4583a2f3f0a9ed419e482b081befd90, type: 2}
-    amount: 30
-  - item: {fileID: 11400000, guid: ecf3461d41e125f4facffa2f13aba858, type: 2}
+  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
     amount: 30
   unlocks:
   - {fileID: 11400000, guid: 9f52faaf87beef144b8c9b18ae275a8e, type: 2}

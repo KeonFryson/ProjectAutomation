@@ -68,6 +68,9 @@ public class MainMenu : MonoBehaviour
         Button newGame = MenuUI.MakeButton(panel, "New Game", MenuUI.ButtonGray, 52f, 20);
         newGame.onClick.AddListener(() => StartGame(SaveSystem.NoSlot));
 
+        Button tutorial = MenuUI.MakeButton(panel, "Tutorial", MenuUI.ButtonGray, 52f, 20);
+        tutorial.onClick.AddListener(() => { TutorialManager.ResetFlag(); StartGame(SaveSystem.NoSlot); });
+
         Button load = MenuUI.MakeButton(panel, "Load Game", MenuUI.ButtonGray, 52f, 20);
         load.onClick.AddListener(OpenLoad);
 

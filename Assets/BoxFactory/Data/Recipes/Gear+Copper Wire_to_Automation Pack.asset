@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ebff7a4e7fe645d4baf0f0cc5672ad37, type: 3}
+  m_Name: Gear+Copper Wire_to_Automation Pack
+  m_EditorClassIdentifier: Assembly-CSharp::RecipeDefinition
+  inputs:
+  - item: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: ecf3461d41e125f4facffa2f13aba858, type: 2}
+    amount: 1
+  outputs:
+  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
+    amount: 1
+  processTime: 4
+  inputItem: {fileID: 0}
+  outputItem: {fileID: 0}

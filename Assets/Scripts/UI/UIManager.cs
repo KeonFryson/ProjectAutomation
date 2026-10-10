@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -117,6 +118,7 @@ public class UIManager : MonoBehaviour
     private Miner liveMiner;
     private Processor liveProcessor;
     private bool liveLab;
+    private PortalInspectorUI livePortal;
     private Text labStatusText;
     private Slot liveInputSlot;
     private Slot liveOutputSlot;
@@ -1443,10 +1445,12 @@ public class UIManager : MonoBehaviour
         flowInputs.Clear();
         flowOutputs.Clear();
         recipeRows.Clear();
+        livePortal = null;
 
         if (building is Miner miner) BuildMinerWindow(miner);
         else if (building is Processor processor) BuildProcessorWindow(processor);
         else if (building is ResearchLab) BuildLabWindow();
+        else if (building is Portal portal) livePortal = PortalInspectorUI.Build(inspectorOptionsParent, uiFont, portal);
         else CreateText(inspectorOptionsParent, "Info", "This building has no settings.", 14, FontStyle.Italic, TextAnchor.MiddleLeft, 24f);
 
         RefreshLive();
@@ -1674,6 +1678,10 @@ public class UIManager : MonoBehaviour
         else if (liveProcessor != null)
         {
             RefreshProcessorLive();
+        }
+        else if (livePortal != null)
+        {
+            livePortal.Refresh();
         }
         else if (liveLab && labStatusText != null)
         {

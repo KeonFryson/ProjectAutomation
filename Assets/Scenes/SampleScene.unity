@@ -435,6 +435,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e26750cd57944cc439e4fd3f6e63ea67, type: 2}
   - {fileID: 11400000, guid: 9ad67d9ec7cfe1d46927c4be67bb414f, type: 2}
   - {fileID: 11400000, guid: 499ed2ff195320a44a6e0f3d7f98d91c, type: 2}
+  - {fileID: 11400000, guid: 246650132e800ab4b8b6fdadcdbe106f, type: 2}
+  - {fileID: 11400000, guid: 5941b83d0cbf4394b9f3a6970057acbe, type: 2}
+  - {fileID: 11400000, guid: 3f6cd79f65a5d3141854c93e17a53f32, type: 2}
   deletionHoldTime: 0.3
 --- !u!114 &1962065048
 MonoBehaviour:
@@ -478,15 +481,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ResearchManager
   allTechs:
   - {fileID: 11400000, guid: a093dfbf4b23ed149a2728b3f1c04def, type: 2}
-  - {fileID: 11400000, guid: 200df0656a96bf94d921ed5defcf6f85, type: 2}
-  - {fileID: 11400000, guid: e7ab6ed58fde80849b21dde7a8e3116f, type: 2}
   - {fileID: 11400000, guid: 866829111c0c53443ab6eec6f675dcf6, type: 2}
-  - {fileID: 11400000, guid: 6dfd148e5dd40614ca17a065286367f9, type: 2}
   - {fileID: 11400000, guid: 27d3c1258f57a2241a2438f3f67eaeca, type: 2}
+  - {fileID: 11400000, guid: 4601fca1bdc08ef46b17523b28504961, type: 2}
+  - {fileID: 11400000, guid: e7ab6ed58fde80849b21dde7a8e3116f, type: 2}
+  - {fileID: 11400000, guid: 200df0656a96bf94d921ed5defcf6f85, type: 2}
+  - {fileID: 11400000, guid: 6dfd148e5dd40614ca17a065286367f9, type: 2}
   - {fileID: 11400000, guid: ae69b9f3ffaadb74c8cc3a17e231b2bc, type: 2}
   - {fileID: 11400000, guid: 9e4581886dbbb20419fca1341421ac0f, type: 2}
-  - {fileID: 11400000, guid: cfecec1825f4fa7468f5ef4b0a95c053, type: 2}
   - {fileID: 11400000, guid: 4bb03859c6ef054409168aba75dc3593, type: 2}
+  - {fileID: 11400000, guid: cfecec1825f4fa7468f5ef4b0a95c053, type: 2}
   - {fileID: 11400000, guid: 26cfd0c9f91a3bc47b40e72b40e3c3ca, type: 2}
   - {fileID: 11400000, guid: 926002d667c6d914789953b118d1660d, type: 2}
   - {fileID: 11400000, guid: 679e490bd9599064483549161b5c06ee, type: 2}

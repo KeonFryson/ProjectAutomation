@@ -13,15 +13,15 @@ MonoBehaviour:
   m_Name: Industrial Machinery
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
   displayName: Industrial Machinery
-  description: 
+  description: Faster smelters, presses and assemblers.
   prerequisites:
   - {fileID: 11400000, guid: e7ab6ed58fde80849b21dde7a8e3116f, type: 2}
-  - {fileID: 11400000, guid: 866829111c0c53443ab6eec6f675dcf6, type: 2}
+  - {fileID: 11400000, guid: 27d3c1258f57a2241a2438f3f67eaeca, type: 2}
   cost:
-  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
-    amount: 60
-  - item: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
-    amount: 60
+  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
+    amount: 40
+  - item: {fileID: 11400000, guid: 8a60d62782c1f624aa725248de576de4, type: 2}
+    amount: 20
   unlocks:
   - {fileID: 11400000, guid: 499ed2ff195320a44a6e0f3d7f98d91c, type: 2}
   - {fileID: 11400000, guid: e26750cd57944cc439e4fd3f6e63ea67, type: 2}

@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: Portal Theory
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
   displayName: Portal Theory
-  description: 
+  description: Everything you learned, focused into one gate.
   prerequisites:
   - {fileID: 11400000, guid: ae69b9f3ffaadb74c8cc3a17e231b2bc, type: 2}
   - {fileID: 11400000, guid: 26cfd0c9f91a3bc47b40e72b40e3c3ca, type: 2}
   - {fileID: 11400000, guid: 926002d667c6d914789953b118d1660d, type: 2}
   cost:
-  - item: {fileID: 11400000, guid: bb36c17d032ed5641b998abac45d3436, type: 2}
-    amount: 60
-  - item: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
+  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
     amount: 100
-  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
+  - item: {fileID: 11400000, guid: 8a60d62782c1f624aa725248de576de4, type: 2}
     amount: 100
-  - item: {fileID: 11400000, guid: 32d49005741112743b498728620594d3, type: 2}
+  - item: {fileID: 11400000, guid: 4abcbe2475bac2840bba0eccc9cbdf31, type: 2}
     amount: 100
+  - item: {fileID: 11400000, guid: f3a8310508dd1544387255c8a60822ec, type: 2}
+    amount: 50
   unlocks:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 5941b83d0cbf4394b9f3a6970057acbe, type: 2}

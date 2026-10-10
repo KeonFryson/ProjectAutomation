@@ -10,14 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8a8079767b05a643ae69c4801d8700b, type: 3}
-  m_Name: Improved Mining
+  m_Name: Research Automation
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
-  displayName: Improved Mining
-  description: Faster miners.
+  displayName: Research Automation
+  description: Craft Science Packs from several ingredients at once.
   prerequisites:
-  - {fileID: 11400000, guid: 4601fca1bdc08ef46b17523b28504961, type: 2}
+  - {fileID: 11400000, guid: 27d3c1258f57a2241a2438f3f67eaeca, type: 2}
   cost:
-  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
+  - item: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
+    amount: 20
+  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
     amount: 20
   unlocks:
-  - {fileID: 11400000, guid: d1f6191af74f18045bec7da97f33727d, type: 2}
+  - {fileID: 11400000, guid: 3f6cd79f65a5d3141854c93e17a53f32, type: 2}

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Smelting
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
   displayName: Smelting
-  description: 
+  description: Melt ore into bars.
   prerequisites: []
   cost:
   - item: {fileID: 11400000, guid: 1bffe35aee194214f93153dceb1814a2, type: 2}

@@ -13,14 +13,16 @@ MonoBehaviour:
   m_Name: High-Throughput Lab
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
   displayName: High-Throughput Lab
-  description: 
+  description: The fastest research lab.
   prerequisites:
   - {fileID: 11400000, guid: 6dfd148e5dd40614ca17a065286367f9, type: 2}
   - {fileID: 11400000, guid: cfecec1825f4fa7468f5ef4b0a95c053, type: 2}
   cost:
-  - item: {fileID: 11400000, guid: 93d46ae36422d9446a5f74a644a4e8e8, type: 2}
-    amount: 40
-  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
-    amount: 40
+  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
+    amount: 50
+  - item: {fileID: 11400000, guid: 8a60d62782c1f624aa725248de576de4, type: 2}
+    amount: 50
+  - item: {fileID: 11400000, guid: 4abcbe2475bac2840bba0eccc9cbdf31, type: 2}
+    amount: 30
   unlocks:
   - {fileID: 11400000, guid: 927a5d321aba2e045895b731aee344e9, type: 2}

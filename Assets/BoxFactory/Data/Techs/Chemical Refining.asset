@@ -13,13 +13,15 @@ MonoBehaviour:
   m_Name: Chemical Refining
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
   displayName: Chemical Refining
-  description: 
+  description: Refine quartz and crystals.
   prerequisites:
   - {fileID: 11400000, guid: 9e4581886dbbb20419fca1341421ac0f, type: 2}
   cost:
+  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
+    amount: 40
+  - item: {fileID: 11400000, guid: 8a60d62782c1f624aa725248de576de4, type: 2}
+    amount: 40
   - item: {fileID: 11400000, guid: fbe695bff94fe2f4e929eec6c6d3416d, type: 2}
-    amount: 60
-  - item: {fileID: 11400000, guid: afed96ebcfa0b9248bfe002e89fa3d3e, type: 2}
     amount: 40
   unlocks:
   - {fileID: 11400000, guid: d7a48b2ebdf555a4cb0040544a936ebc, type: 2}

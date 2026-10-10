@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: Metal Pressing
   m_EditorClassIdentifier: Assembly-CSharp::TechDefinition
   displayName: Metal Pressing
-  description: 
+  description: Press bars into plates and wire.
   prerequisites:
   - {fileID: 11400000, guid: a093dfbf4b23ed149a2728b3f1c04def, type: 2}
   cost:
   - item: {fileID: 11400000, guid: 02ff936bcde0e5745a196e2e459d96fe, type: 2}
-    amount: 60
+    amount: 20
   - item: {fileID: 11400000, guid: 7e7f549f56686c4458b181f92c192028, type: 2}
-    amount: 40
+    amount: 20
   unlocks:
   - {fileID: 11400000, guid: 72515cb23e617044c9a4b4b68aa21d4e, type: 2}
