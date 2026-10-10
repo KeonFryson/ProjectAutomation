@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -14,27 +13,32 @@ using UnityEngine.UI;
 ///  - [T] tech tree window: nodes in columns, prerequisite lines, detail panel
 ///  - click a building: machine window (miner / processor / research lab widgets)
 /// Put this on an empty GameObject named "UIManager" next to BuildManager.
+///
+/// Colors, sizes, fonts and texts come from the UITheme asset (Assets/Resources/UITheme.asset),
+/// editable in Box Factory > Content Editor > UI. Without the asset, built-in defaults are used.
 /// </summary>
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
 
-    // ---- Factorio-ish palette ----
-    private static readonly Color PanelBg = new Color(0.20f, 0.20f, 0.21f, 0.97f);
-    private static readonly Color PanelInner = new Color(0.10f, 0.10f, 0.11f, 1f);
-    private static readonly Color TitleBar = new Color(0.31f, 0.31f, 0.33f, 1f);
-    private static readonly Color Accent = new Color(0.95f, 0.62f, 0.12f, 1f);
-    private static readonly Color ButtonGray = new Color(0.36f, 0.36f, 0.39f, 1f);
-    private static readonly Color ButtonGreen = new Color(0.25f, 0.62f, 0.32f, 1f);
-    private static readonly Color ButtonRed = new Color(0.65f, 0.25f, 0.25f, 1f);
-    private static readonly Color SlotBorder = new Color(0.45f, 0.45f, 0.5f, 1f);
-    private static readonly Color SlotBorderActive = Accent;
-    private static readonly Color SlotInner = new Color(0.14f, 0.14f, 0.17f, 1f);
-    private static readonly Color BarBg = new Color(0.12f, 0.12f, 0.15f, 1f);
-    private static readonly Color BarFill = Accent;
-    private static readonly Color DimText = new Color(1f, 1f, 1f, 0.65f);
+    // ---- Palette + tech layout: filled from the UITheme asset in ApplyTheme() ----
+    private static Color PanelBg, PanelInner, TitleBar, Accent, ButtonGray, ButtonGreen, ButtonRed,
+        SlotBorder, SlotBorderActive, SlotInner, BarBg, BarFill, DimText;
+    private static float NodeW, NodeH, ColSpacing, RowSpacing;
+    private UITheme theme;
 
-    private const float NodeW = 190f, NodeH = 60f, ColSpacing = 250f, RowSpacing = 80f;
+    private void ApplyTheme()
+    {
+        theme = UITheme.Current;
+        PanelBg = theme.panelBg; PanelInner = theme.panelInner; TitleBar = theme.titleBar;
+        Accent = theme.accent; DimText = theme.dimText;
+        ButtonGray = theme.buttonGray; ButtonGreen = theme.buttonGreen; ButtonRed = theme.buttonRed;
+        SlotBorder = theme.slotBorder; SlotBorderActive = theme.accent; SlotInner = theme.slotInner;
+        BarBg = theme.barBg; BarFill = theme.barFill;
+        NodeW = theme.techNodeSize.x; NodeH = theme.techNodeSize.y;
+        ColSpacing = theme.techColumnSpacing; RowSpacing = theme.techRowSpacing;
+    }
+
     private const string DefaultInfo = "Hover a building for details";
 
     private class Slot
@@ -151,6 +155,7 @@ public class UIManager : MonoBehaviour
     {
         Instance = this;
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        ApplyTheme();
         BuildUI();
     }
 
@@ -292,7 +297,7 @@ public class UIManager : MonoBehaviour
         hotbarPanel.transform.SetParent(parent, false);
         hotbarParent = hotbarPanel.AddComponent<RectTransform>();
         hotbarParent.anchorMin = hotbarParent.anchorMax = hotbarParent.pivot = new Vector2(0.5f, 0f);
-        hotbarParent.anchoredPosition = new Vector2(0f, 44f);
+        hotbarParent.anchoredPosition = new Vector2(0f, theme.hotbarBottomOffset);
 
         var bg = hotbarPanel.AddComponent<Image>();
         bg.color = PanelBg;
@@ -311,7 +316,7 @@ public class UIManager : MonoBehaviour
         for (int i = 0; i < 9; i++)
         {
             int index = i;
-            var slot = CreateSlot(hotbarParent, 52f);
+            var slot = CreateSlot(hotbarParent, theme.hotbarSlotSize);
             CreateSlotText(slot.Root.transform, (i + 1).ToString(), 12, TextAnchor.UpperLeft);
             hotbarViews.Add(new HotbarView { Slot = slot });
 
@@ -328,7 +333,7 @@ public class UIManager : MonoBehaviour
         infoGo.transform.SetParent(parent, false);
         var irt = infoGo.AddComponent<RectTransform>();
         irt.anchorMin = irt.anchorMax = irt.pivot = new Vector2(0.5f, 0f);
-        irt.anchoredPosition = new Vector2(0f, 114f);
+        irt.anchoredPosition = new Vector2(0f, theme.hotbarBottomOffset + theme.hotbarSlotSize + 18f);
         irt.sizeDelta = new Vector2(700f, 54f);
         hotbarInfoText = infoGo.AddComponent<Text>();
         hotbarInfoText.font = uiFont;
@@ -350,16 +355,16 @@ public class UIManager : MonoBehaviour
 
         hintText = go.AddComponent<Text>();
         hintText.font = uiFont;
-        hintText.fontSize = 15;
+        hintText.fontSize = theme.hintFontSize;
         hintText.alignment = TextAnchor.MiddleCenter;
         hintText.color = DimText;
-        hintText.text = "[Q] Build   [T] Research   [1-9] Hotbar (drag from menu, double-click to clear)   [R] Rotate   [Right click] Cancel / hold to delete";
+        hintText.text = theme.hintText;
         hintText.raycastTarget = false;
     }
 
     private void BuildMenuPanel(Transform parent)
     {
-        menuWindow = CreateWindow(parent, "BuildMenu", "Build  ([Q] to close)", new Vector2(600f, 460f),
+        menuWindow = CreateWindow(parent, "BuildMenu", theme.buildMenuTitle, theme.buildMenuSize,
             Vector2.zero, new Vector2(0.5f, 0.5f), false, () => SetBuildMenuOpen(false));
         var body = menuWindow.Body;
 
@@ -384,7 +389,7 @@ public class UIManager : MonoBehaviour
         gridLe.flexibleHeight = 1f;
         gridLe.preferredHeight = 200f;
         var grid = gridGo.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(72f, 72f);
+        grid.cellSize = new Vector2(theme.buildIconSize, theme.buildIconSize);
         grid.spacing = new Vector2(6f, 6f);
         grid.padding = new RectOffset(8, 8, 8, 8);
         grid.childAlignment = TextAnchor.UpperLeft;
@@ -396,7 +401,7 @@ public class UIManager : MonoBehaviour
     private void BuildInspectorPanel(Transform parent)
     {
         // Big window in the middle of the screen, like the build menu and tech tree.
-        inspectorWindow = CreateWindow(parent, "MachineWindow", "Building", new Vector2(820f, 620f),
+        inspectorWindow = CreateWindow(parent, "MachineWindow", "Building", theme.machineWindowSize,
             Vector2.zero, new Vector2(0.5f, 0.5f), false, HideInspector);
         var body = inspectorWindow.Body;
 
@@ -493,7 +498,7 @@ public class UIManager : MonoBehaviour
         hlg.childControlWidth = true;
         hlg.childControlHeight = true;
 
-        w.Title = CreateText(bar.transform, "Title", title, 16, FontStyle.Bold, TextAnchor.MiddleLeft, 26f);
+        w.Title = CreateText(bar.transform, "Title", title, theme.windowTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, 26f);
         w.Title.GetComponent<LayoutElement>().flexibleWidth = 1f;
 
         var close = CreateButton(bar.transform, "X", ButtonRed, 26f, 14);
@@ -625,7 +630,7 @@ public class UIManager : MonoBehaviour
 
     private void CreateBuildIcon(BuildingDefinition def)
     {
-        var slot = CreateSlot(menuGridParent, 72f);
+        var slot = CreateSlot(menuGridParent, theme.buildIconSize);
         SetSlotBuilding(slot, def, false);
         slot.Root.name = def.displayName + "Icon";
 
@@ -847,14 +852,14 @@ public class UIManager : MonoBehaviour
 
     private void BuildTechWindow(Transform parent)
     {
-        techWindow = CreateWindow(parent, "TechWindow", "Research  ([T] to close)", new Vector2(980f, 660f),
+        techWindow = CreateWindow(parent, "TechWindow", theme.techWindowTitle, theme.techWindowSize,
             Vector2.zero, new Vector2(0.5f, 0.5f), false, () => SetTechOpen(false));
         var body = techWindow.Body;
 
         // Scrollable tree area
         var scrollGo = new GameObject("TechScroll");
         scrollGo.transform.SetParent(body, false);
-        scrollGo.AddComponent<Image>().color = new Color(0.06f, 0.06f, 0.07f, 1f);
+        scrollGo.AddComponent<Image>().color = theme.techTreeBg;
         var sle = scrollGo.AddComponent<LayoutElement>();
         sle.flexibleHeight = 1f;
         sle.preferredHeight = 300f;
@@ -970,11 +975,11 @@ public class UIManager : MonoBehaviour
         rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
         rt.pivot = new Vector2(0f, 0.5f);
         Vector2 d = b - a;
-        rt.sizeDelta = new Vector2(d.magnitude, 3f);
+        rt.sizeDelta = new Vector2(d.magnitude, theme.techLineThickness);
         rt.anchoredPosition = a;
         rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
         var img = go.AddComponent<Image>();
-        img.color = new Color(0.55f, 0.55f, 0.6f, 1f);
+        img.color = theme.techLineColor;
         img.raycastTarget = false;
     }
 
@@ -1005,7 +1010,7 @@ public class UIManager : MonoBehaviour
         trt.offsetMax = new Vector2(-8f, -4f);
         var label = textGo.AddComponent<Text>();
         label.font = uiFont;
-        label.fontSize = 14;
+        label.fontSize = theme.techNodeFontSize;
         label.fontStyle = FontStyle.Bold;
         label.alignment = TextAnchor.MiddleLeft;
         label.color = Color.white;
@@ -1083,10 +1088,10 @@ public class UIManager : MonoBehaviour
             bool can = rm.CanStart(v.Tech);
 
             Color c;
-            if (done) c = new Color(0.20f, 0.45f, 0.25f);
-            else if (active) c = new Color(0.72f, 0.46f, 0.10f);
-            else if (can) c = new Color(0.30f, 0.34f, 0.42f);
-            else c = new Color(0.16f, 0.16f, 0.18f);
+            if (done) c = theme.techDone;
+            else if (active) c = theme.techActive;
+            else if (can) c = theme.techAvailable;
+            else c = theme.techLocked;
 
             v.Bg.color = c;
             v.Label.color = (done || active || can) ? Color.white : DimText;

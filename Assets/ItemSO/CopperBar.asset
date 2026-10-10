@@ -10,8 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d6605e02b4011e546a9ce3bc2e444011, type: 3}
-  m_Name: Item_Gear
+  m_Name: CopperBar
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  id: I05
-  itemName: Gear
-  color: {r: 0.2004601, g: 0.20754719, b: 0.19873622, a: 1}
+  id: I01
+  itemName: CopperBar
+  color: {r: 0.764151, g: 0.37851244, b: 0.11894804, a: 1}
+  sellValue: 6
