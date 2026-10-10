@@ -73,6 +73,27 @@ public class BoxFactoryContentEditor : EditorWindow
     private bool autoRegister = true;
     private bool createPrefab = true;
     private int newPrefabType;
+    // ---- List filters ----
+    private static readonly string[] ItemFilterNames =
+        { "All", "Mineable (raw)", "Crafted by a recipe", "Used as recipe input", "Used in a tech cost / portal", "Unused" };
+    private static readonly string[] BuildingUnlockNames =
+        { "All", "Starter (unlocked by default)", "Unlocked by a tech", "Never unlocked" };
+    private static readonly string[] TechFilterNames =
+        { "All", "Root (no prerequisites)", "Has prerequisites", "Not in ResearchManager", "Unlocks nothing" };
+
+    private int itemFilter, buildingUnlockFilter, techFilter;
+    private string buildingCategoryFilter = "All";
+
+    private class FilterContext
+    {
+        public HashSet<ItemDefinition> Mineable = new HashSet<ItemDefinition>();
+        public HashSet<ItemDefinition> Crafted = new HashSet<ItemDefinition>();
+        public HashSet<ItemDefinition> RecipeInput = new HashSet<ItemDefinition>();
+        public HashSet<ItemDefinition> TechOrPortal = new HashSet<ItemDefinition>();
+        public HashSet<BuildingDefinition> TechUnlocked = new HashSet<BuildingDefinition>();
+        public ResearchManager Rm;
+    }
+
 
     private Vector2 listScroll, detailScroll, sceneScroll, uiScroll, previewScroll, treeScroll;
     private UnityEngine.Object selected;
@@ -297,8 +318,9 @@ public class BoxFactoryContentEditor : EditorWindow
 
         EditorGUILayout.BeginVertical(GUILayout.Width(260f));
         DrawCreateBox();
-
         search = EditorGUILayout.TextField(search, EditorStyles.toolbarSearchField);
+        DrawFilters();
+        var filterCtx = BuildFilterContext();
 
         listScroll = EditorGUILayout.BeginScrollView(listScroll, "box");
         foreach (var obj in CurrentAssets())
@@ -309,6 +331,7 @@ public class BoxFactoryContentEditor : EditorWindow
                            || IdOf(obj).IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
                 if (!hit) continue;
             }
+            if (!PassesFilter(obj, filterCtx)) continue;
             DrawListRow(obj);
         }
         EditorGUILayout.EndScrollView();
@@ -325,7 +348,105 @@ public class BoxFactoryContentEditor : EditorWindow
 
         EditorGUILayout.EndHorizontal();
     }
+    private void DrawFilters()
+    {
+        switch (tab)
+        {
+            case Tab.Items:
+                itemFilter = EditorGUILayout.Popup("Filter", itemFilter, ItemFilterNames);
+                break;
 
+            case Tab.Buildings:
+                {
+                    var cats = new List<string> { "All" };
+                    cats.AddRange(LoadAll<BuildingDefinition>()
+                        .Select(b => string.IsNullOrEmpty(b.category) ? "Buildings" : b.category)
+                        .Distinct().OrderBy(c => c));
+                    int ci = Mathf.Max(0, cats.IndexOf(buildingCategoryFilter));
+                    ci = EditorGUILayout.Popup("Category", ci, cats.ToArray());
+                    buildingCategoryFilter = cats[ci];
+                    buildingUnlockFilter = EditorGUILayout.Popup("Unlock", buildingUnlockFilter, BuildingUnlockNames);
+                    break;
+                }
+
+            case Tab.Techs:
+                techFilter = EditorGUILayout.Popup("Filter", techFilter, TechFilterNames);
+                break;
+        }
+    }
+
+    private FilterContext BuildFilterContext()
+    {
+        var ctx = new FilterContext();
+
+        if (tab == Tab.Items && itemFilter != 0)
+        {
+            foreach (var m in PrefabsOf<Miner>())
+            {
+                foreach (var i in m.availableItems) if (i != null) ctx.Mineable.Add(i);
+                if (m.producedItem != null) ctx.Mineable.Add(m.producedItem);
+            }
+            foreach (var r in LoadAll<RecipeDefinition>())
+            {
+                foreach (var s in r.Outputs) if (s != null && s.item != null) ctx.Crafted.Add(s.item);
+                foreach (var s in r.Inputs) if (s != null && s.item != null) ctx.RecipeInput.Add(s.item);
+            }
+            foreach (var t in LoadAll<TechDefinition>())
+                foreach (var c in t.cost) if (c != null && c.item != null) ctx.TechOrPortal.Add(c.item);
+            foreach (var p in PrefabsOf<Portal>())
+                foreach (var c in p.requirements) if (c != null && c.item != null) ctx.TechOrPortal.Add(c.item);
+        }
+        else if (tab == Tab.Buildings && buildingUnlockFilter != 0)
+        {
+            foreach (var t in LoadAll<TechDefinition>())
+                foreach (var b in t.unlocks) if (b != null) ctx.TechUnlocked.Add(b);
+        }
+        else if (tab == Tab.Techs && techFilter == 3)
+        {
+            ctx.Rm = FindFirstObjectByType<ResearchManager>();
+        }
+
+        return ctx;
+    }
+
+    private bool PassesFilter(UnityEngine.Object obj, FilterContext ctx)
+    {
+        switch (obj)
+        {
+            case ItemDefinition i:
+                switch (itemFilter)
+                {
+                    case 1: return ctx.Mineable.Contains(i);
+                    case 2: return ctx.Crafted.Contains(i);
+                    case 3: return ctx.RecipeInput.Contains(i);
+                    case 4: return ctx.TechOrPortal.Contains(i);
+                    case 5: return !ctx.RecipeInput.Contains(i) && !ctx.TechOrPortal.Contains(i);
+                }
+                return true;
+
+            case BuildingDefinition b:
+                string cat = string.IsNullOrEmpty(b.category) ? "Buildings" : b.category;
+                if (buildingCategoryFilter != "All" && cat != buildingCategoryFilter) return false;
+                switch (buildingUnlockFilter)
+                {
+                    case 1: return b.unlockedByDefault;
+                    case 2: return !b.unlockedByDefault && ctx.TechUnlocked.Contains(b);
+                    case 3: return !b.unlockedByDefault && !ctx.TechUnlocked.Contains(b);
+                }
+                return true;
+
+            case TechDefinition t:
+                switch (techFilter)
+                {
+                    case 1: return !t.prerequisites.Any(p => p != null);
+                    case 2: return t.prerequisites.Any(p => p != null);
+                    case 3: return ctx.Rm != null && !ctx.Rm.allTechs.Contains(t);
+                    case 4: return !t.unlocks.Any(u => u != null);
+                }
+                return true;
+        }
+        return true;
+    }
     private void DrawListRow(UnityEngine.Object obj)
     {
         Rect r = EditorGUILayout.GetControlRect(false, 22f);
@@ -515,36 +636,6 @@ public class BoxFactoryContentEditor : EditorWindow
                 Dirty(m);
             },
             "No Miner prefabs yet. Create a Building with prefab type Miner.");
-
-        var recipes = LoadAll<RecipeDefinition>();
-        LinkList("item.recipesIn", "Recipes that consume this item", recipes, r => r.name,
-            r => r.UsesInput(item),
-            (r, on) => SetRecipeItem(r, item, true, on),
-            "No recipes yet.");
-        LinkList("item.recipesOut", "Recipes that produce this item", recipes, r => r.name,
-            r => r.MakesOutput(item),
-            (r, on) => SetRecipeItem(r, item, false, on),
-            "No recipes yet.");
-
-        LinkList("item.techs", "Techs that cost this item (amount 10 when added, edit it on the tech)", LoadAll<TechDefinition>(),
-            t => t.displayName,
-            t => t.cost.Any(c => c != null && c.item == item),
-            (t, on) =>
-            {
-                Undo.RecordObject(t, "Edit tech cost");
-                if (on) t.cost.Add(new ItemAmount { item = item, amount = 10 });
-                else t.cost.RemoveAll(c => c == null || c.item == item);
-                Dirty(t);
-            },
-            "No techs yet.");
-
-        if (Fold("item.preview", "Preview", false))
-        {
-            Rect r = FixedRect(60f, 60f);
-            DrawSlot(r, Theme.slotBorder);
-            DrawIconColor(r, item.color);
-            EditorGUILayout.LabelField(item.itemName);
-        }
     }
 
     // ---- Recipes ----

@@ -10,14 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ebff7a4e7fe645d4baf0f0cc5672ad37, type: 3}
-  m_Name: Copper Wire_to_Circuit
+  m_Name: IronBar+CopperBar_to_Basic Pack
   m_EditorClassIdentifier: Assembly-CSharp::RecipeDefinition
   inputs:
-  - item: {fileID: 11400000, guid: ecf3461d41e125f4facffa2f13aba858, type: 2}
-    amount: 6
+  - item: {fileID: 11400000, guid: 02ff936bcde0e5745a196e2e459d96fe, type: 2}
+    amount: 5
+  - item: {fileID: 11400000, guid: 7e7f549f56686c4458b181f92c192028, type: 2}
+    amount: 5
   outputs:
-  - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
+  - item: {fileID: 11400000, guid: 856de89df46a99343bad4da02e560905, type: 2}
     amount: 1
-  processTime: 3
+  processTime: 2
   inputItem: {fileID: 0}
   outputItem: {fileID: 0}

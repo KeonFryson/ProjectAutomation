@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RecipeDefinition
   inputs:
   - item: {fileID: 11400000, guid: 32d49005741112743b498728620594d3, type: 2}
-    amount: 1
+    amount: 2
   - item: {fileID: 11400000, guid: 93d46ae36422d9446a5f74a644a4e8e8, type: 2}
-    amount: 1
+    amount: 2
   outputs:
   - item: {fileID: 11400000, guid: 4abcbe2475bac2840bba0eccc9cbdf31, type: 2}
     amount: 1

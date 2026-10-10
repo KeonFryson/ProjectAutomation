@@ -108,7 +108,7 @@ MonoBehaviour:
   producedItem: {fileID: 0}
   availableItems:
   - {fileID: 11400000, guid: 2b33ed764ca1d8a4abe5257f0966c17b, type: 2}
-  - {fileID: 11400000, guid: fbe695bff94fe2f4e929eec6c6d3416d, type: 2}
   - {fileID: 11400000, guid: 1bffe35aee194214f93153dceb1814a2, type: 2}
   - {fileID: 11400000, guid: e20bcd03d922d8143a60fa7f4986eb25, type: 2}
+  - {fileID: 11400000, guid: fbe695bff94fe2f4e929eec6c6d3416d, type: 2}
   productionInterval: 2
