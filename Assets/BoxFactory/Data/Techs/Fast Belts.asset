@@ -15,9 +15,9 @@ MonoBehaviour:
   displayName: Fast Belts
   description: Faster conveyor belts.
   prerequisites:
-  - {fileID: 11400000, guid: 4601fca1bdc08ef46b17523b28504961, type: 2}
+  - {fileID: 11400000, guid: 27d3c1258f57a2241a2438f3f67eaeca, type: 2}
   cost:
   - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
-    amount: 20
+    amount: 50
   unlocks:
   - {fileID: 11400000, guid: 1a77ea5e73fa4ac45a454a49658dee23, type: 2}

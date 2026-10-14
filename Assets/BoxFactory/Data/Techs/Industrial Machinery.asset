@@ -21,7 +21,7 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
     amount: 40
   - item: {fileID: 11400000, guid: 8a60d62782c1f624aa725248de576de4, type: 2}
-    amount: 20
+    amount: 40
   unlocks:
   - {fileID: 11400000, guid: 499ed2ff195320a44a6e0f3d7f98d91c, type: 2}
   - {fileID: 11400000, guid: e26750cd57944cc439e4fd3f6e63ea67, type: 2}

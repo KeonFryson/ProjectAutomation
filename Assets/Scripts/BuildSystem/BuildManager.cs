@@ -15,6 +15,8 @@ using UnityEngine.InputSystem;
 ///   Left click on a building     - open its window (when not placing)
 ///   Right click / Escape         - cancel placement
 ///   Right click + hold (1 sec)   - delete a placed building
+///   Shift + Right click / Ctrl+C - copy settings of the hovered building (recipe, mined item)
+///   Shift + Left click / Ctrl+V  - paste settings onto the hovered building (hold + drag to paste on many)
 /// Buildings larger than 1x1 are placed with the mouse over their center cell.
 /// Placing is free; which buildings you can place is gated by the tech tree.
 /// </summary>
@@ -31,6 +33,9 @@ public class BuildManager : MonoBehaviour
     public bool IsPlacing => selectedDefinition != null;
     public BuildingDefinition SelectedDefinition => selectedDefinition;
 
+    /// <summary>Settings copied with Copy (null = nothing copied yet).</summary>
+    public BuildingSettings Clipboard { get; private set; }
+
     private BuildingDefinition selectedDefinition;
     private GameObject ghost;
     private SpriteRenderer ghostRenderer;
@@ -44,6 +49,9 @@ public class BuildManager : MonoBehaviour
     // Lets auto-connect tell a corner turn apart from a parallel line.
     private Vector2Int dragPrevCell;
     private bool hasDragPrev;
+
+    // Last cell we pasted settings onto while Shift+dragging (so we paste once per cell).
+    private Vector2Int lastPasteCell = new Vector2Int(int.MinValue, int.MinValue);
 
     private Camera mainCamera;
     private readonly List<Vector2Int> tmpCells = new List<Vector2Int>();
@@ -66,8 +74,9 @@ public class BuildManager : MonoBehaviour
         if (mouse == null) return;
 
         Keyboard keyboard = Keyboard.current;
+        bool shiftHeld = keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
 
-        HandleDeletionInput(mouse);
+        HandleDeletionInput(mouse, shiftHeld);
 
         if (keyboard != null && keyboard.rKey.wasPressedThisFrame)
         {
@@ -82,7 +91,9 @@ public class BuildManager : MonoBehaviour
             }
         }
 
-        if (!IsPlacing && mouse.leftButton.wasPressedThisFrame)
+        if (!IsPlacing) HandleSettingsClipboard(mouse, keyboard, shiftHeld);
+
+        if (!IsPlacing && mouse.leftButton.wasPressedThisFrame && !shiftHeld)
             HandleSelectBuilding(mouse);
 
         if (!IsPlacing) return;
@@ -130,6 +141,71 @@ public class BuildManager : MonoBehaviour
             UIManager.Instance.HideInspector();
     }
 
+    // ---------------------------------------------------------------
+    // Copy / paste building settings
+    // ---------------------------------------------------------------
+
+    private void HandleSettingsClipboard(Mouse mouse, Keyboard keyboard, bool shift)
+    {
+        if (!mouse.leftButton.isPressed) lastPasteCell = new Vector2Int(int.MinValue, int.MinValue);
+        if (keyboard == null) return;
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+        bool ctrl = keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed;
+        Vector2Int cell = GridManager.Instance.WorldToGrid(GetMouseWorldPosition(mouse));
+        FactoryBuilding hovered = GridManager.Instance.GetBuilding(cell);
+
+        // Copy: Shift + Right click, or Ctrl+C
+        if ((shift && mouse.rightButton.wasPressedThisFrame) || (ctrl && keyboard.cKey.wasPressedThisFrame))
+            CopySettings(hovered);
+
+        // Paste: Ctrl+V on the hovered building
+        if (ctrl && keyboard.vKey.wasPressedThisFrame)
+            PasteSettings(hovered);
+
+        // Paste: Shift + Left click (hold and drag to paste on many buildings)
+        if (shift && mouse.leftButton.isPressed && cell != lastPasteCell)
+        {
+            lastPasteCell = cell;
+            PasteSettings(hovered);
+        }
+    }
+
+    public bool CopySettings(FactoryBuilding b)
+    {
+        if (b == null) return false;
+
+        var clip = new BuildingSettings();
+        if (!b.CopySettings(clip))
+        {
+            GameToast.Show("This building has no settings to copy");
+            return false;
+        }
+
+        Clipboard = clip;
+        GameToast.Show("Copied: " + clip.Describe());
+        return true;
+    }
+
+    public bool PasteSettings(FactoryBuilding b)
+    {
+        if (b == null) return false;
+        if (Clipboard == null)
+        {
+            GameToast.Show("Nothing copied yet (Shift + Right click a building)");
+            return false;
+        }
+        if (!b.PasteSettings(Clipboard))
+        {
+            GameToast.Show("Can't paste these settings here");
+            return false;
+        }
+
+        GameToast.Show("Pasted: " + Clipboard.Describe());
+        if (UIManager.Instance != null) UIManager.Instance.RefreshInspector(b);
+        return true;
+    }
+
     /// <summary>Single-cell drag placement: steps one cell at a time so belts stay connected.</summary>
     private void DragTo(Vector2Int target)
     {
@@ -166,9 +242,10 @@ public class BuildManager : MonoBehaviour
             building.SetDirection(DirectionUtil.RotateClockwise(building.GetDirection()));
     }
 
-    private void HandleDeletionInput(Mouse mouse)
+    private void HandleDeletionInput(Mouse mouse, bool shiftHeld)
     {
-        if (mouse.rightButton.isPressed)
+        // Shift + Right click is "copy settings", so it never starts a demolish.
+        if (mouse.rightButton.isPressed && !shiftHeld)
         {
             rightClickHoldTimer += Time.deltaTime;
 

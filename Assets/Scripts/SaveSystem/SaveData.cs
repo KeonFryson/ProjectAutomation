@@ -39,6 +39,7 @@ public class BuildingSave
 
     // Processor: locked recipe asset name ("" = idle). Old saves stored the first input item ID here.
     public string recipe;
+    public string selectedRecipe; // Processor: recipe chosen by the player ("" = automatic)
     public int procVersion;      // 0 = old single-item save, 1 = multi-item
     public bool crafting;        // craft timer running (uses 'timer')
     public List<string> inputItems = new List<string>();   // input buffer: ItemDefinition IDs

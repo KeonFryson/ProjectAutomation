@@ -37,6 +37,16 @@ public abstract class FactoryBuilding : MonoBehaviour
     /// </summary>
     public virtual bool FeedsCell(Vector2Int cell) => HasOutput && OutputCell == cell;
 
+    // ---------------------------------------------------------------
+    // Copy / paste settings (override in Miner, Processor, ...)
+    // ---------------------------------------------------------------
+
+    /// <summary>Fills the clipboard with this building's settings. Returns false if it has none.</summary>
+    public virtual bool CopySettings(BuildingSettings clip) { return false; }
+
+    /// <summary>Applies clipboard settings to this building. Returns false if they don't fit.</summary>
+    public virtual bool PasteSettings(BuildingSettings clip) { return false; }
+
     public float SpeedMultiplier =>
         Definition != null ? Mathf.Max(0.01f, Definition.speedMultiplier) : 1f;
 

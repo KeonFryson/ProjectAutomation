@@ -11,7 +11,8 @@ using UnityEngine.UI;
 ///  - bottom: hotbar (keys 1-9) with the first unlocked buildings
 ///  - [Q] build menu with category tabs
 ///  - [T] tech tree window: nodes in columns, prerequisite lines, detail panel
-///  - click a building: machine window (miner / processor / research lab widgets)
+///  - click a building: machine window (miner / processor / research lab widgets).
+///    Processors get a Factorio-style recipe picker; miners and processors get Copy/Paste settings buttons.
 /// Put this on an empty GameObject named "UIManager" next to BuildManager.
 ///
 /// Colors, sizes, fonts and texts come from the UITheme asset (Assets/Resources/UITheme.asset),
@@ -61,6 +62,7 @@ public class UIManager : MonoBehaviour
     }
 
     private class RecipeRow { public Image Background; public RecipeDefinition Recipe; }
+    private class RecipePick { public RecipeDefinition Recipe; public Slot Slot; } // Recipe == null is the "Auto" slot
     private class CostView { public ItemDefinition Item; public int Needed; public Text Label; }
     private class TechView
     {
@@ -116,6 +118,7 @@ public class UIManager : MonoBehaviour
     private Text inspectorStatsText;
     private Text inspectorTooltipText;
     private RectTransform inspectorOptionsParent;
+    private RectTransform clipboardRow;   // Copy settings / Paste settings buttons
     private Button demolishButton;
     private FactoryBuilding selectedBuilding;
 
@@ -128,6 +131,10 @@ public class UIManager : MonoBehaviour
     private Slot liveOutputSlot;
     private RectTransform liveBarFill;
     private readonly List<RecipeRow> recipeRows = new List<RecipeRow>();
+
+    // Processor window: recipe picker
+    private readonly List<RecipePick> recipePicks = new List<RecipePick>();
+    private Text recipeNameText;
 
     // Processor window: live flow diagram (inputs -> progress -> outputs)
     private RectTransform flowInputsRow;
@@ -450,6 +457,21 @@ public class UIManager : MonoBehaviour
 
         inspectorTooltipText = CreateText(body, "Tooltip", "", 14, FontStyle.Italic, TextAnchor.MiddleLeft, 24f);
         inspectorTooltipText.color = DimText;
+
+        // Copy / Paste settings (shown for miners and processors)
+        clipboardRow = CreateRow(body, 36f);
+        var copyBtn = CreateButton(clipboardRow, "Copy settings", ButtonGray, 36f, 14);
+        copyBtn.GetComponent<LayoutElement>().flexibleWidth = 1f;
+        copyBtn.onClick.AddListener(() =>
+        {
+            if (BuildManager.Instance != null) BuildManager.Instance.CopySettings(selectedBuilding);
+        });
+        var pasteBtn = CreateButton(clipboardRow, "Paste settings", ButtonGray, 36f, 14);
+        pasteBtn.GetComponent<LayoutElement>().flexibleWidth = 1f;
+        pasteBtn.onClick.AddListener(() =>
+        {
+            if (BuildManager.Instance != null) BuildManager.Instance.PasteSettings(selectedBuilding);
+        });
 
         demolishButton = CreateButton(body, "Demolish", ButtonRed, 38f, 15);
         demolishButton.onClick.AddListener(OnDemolishClicked);
@@ -1428,6 +1450,13 @@ public class UIManager : MonoBehaviour
         if (inspectorWindow != null) inspectorWindow.Root.SetActive(false);
     }
 
+    /// <summary>Rebuilds the machine window if it is showing this building (used after pasting settings).</summary>
+    public void RefreshInspector(FactoryBuilding b)
+    {
+        if (b != null && b == selectedBuilding && inspectorWindow != null && inspectorWindow.Root.activeSelf)
+            RefreshInspectorOptions(b);
+    }
+
     private void RefreshInspectorOptions(FactoryBuilding building)
     {
         ClearChildren(inspectorOptionsParent);
@@ -1450,7 +1479,12 @@ public class UIManager : MonoBehaviour
         flowInputs.Clear();
         flowOutputs.Clear();
         recipeRows.Clear();
+        recipePicks.Clear();
+        recipeNameText = null;
         livePortal = null;
+
+        // Copy / Paste settings only make sense for buildings that have settings.
+        clipboardRow.gameObject.SetActive(building is Miner || building is Processor);
 
         if (building is Miner miner) BuildMinerWindow(miner);
         else if (building is Processor processor) BuildProcessorWindow(processor);
@@ -1552,7 +1586,25 @@ public class UIManager : MonoBehaviour
     {
         liveProcessor = processor;
 
-        CreateText(inspectorOptionsParent, "Header", "Processing", 18, FontStyle.Bold, TextAnchor.MiddleLeft, 26f);
+        // Factorio-style recipe picker: click a recipe icon to lock the machine to it, or Auto.
+        CreateText(inspectorOptionsParent, "RecipeHeader", "Recipe", 18, FontStyle.Bold, TextAnchor.MiddleLeft, 26f);
+        recipeNameText = CreateText(inspectorOptionsParent, "RecipeName", "", 14, FontStyle.Normal, TextAnchor.MiddleLeft, 22f);
+        recipeNameText.color = DimText;
+
+        var pickGrid = CreateSlotGrid(inspectorOptionsParent, 10, 56f, 6f);
+
+        var autoSlot = CreateSlot(pickGrid, 56f);
+        CreateSlotText(autoSlot.Root.transform, "Auto", 13, TextAnchor.MiddleCenter).fontStyle = FontStyle.Bold;
+        AddRecipePick(autoSlot, processor, null);
+
+        foreach (var r in processor.GetAllRecipes())
+        {
+            if (r == null || !r.IsValid) continue;
+            var slot = CreateCountSlot(pickGrid, 56f, 11);
+            SetSlot(slot, r.FirstOutput);
+            slot.Count.text = "x" + Mathf.Max(1, r.Outputs[0].amount);
+            AddRecipePick(slot, processor, r);
+        }
 
         // Live flow diagram: [inputs]  ->  progress  ->  [outputs]
         var flow = new GameObject("Flow");
@@ -1592,9 +1644,9 @@ public class UIManager : MonoBehaviour
         AddSlotHover(liveOutputSlot, "On output belt: ");
         queueText = CreateLabel(sendRow, "", 13, 0f);
 
-        RebuildFlow(processor.ActiveRecipe);
+        RebuildFlow(processor.DisplayRecipe);
 
-        // All recipes this machine can run
+        // Details of all recipes this machine can run (click a row to select it too)
         CreateText(inspectorOptionsParent, "Header2", "Recipes this machine can run:", 16, FontStyle.Bold, TextAnchor.MiddleLeft, 24f);
         foreach (var r in processor.GetAllRecipes())
         {
@@ -1603,13 +1655,52 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    /// <summary>One recipe line: [2 x icon] + [1 x icon]  ->  [1 x icon]   text (time)</summary>
+    /// <summary>One clickable slot in the recipe picker. recipe == null is the "Auto" slot.</summary>
+    private void AddRecipePick(Slot slot, Processor processor, RecipeDefinition recipe)
+    {
+        var btn = slot.Root.AddComponent<Button>();
+        btn.targetGraphic = slot.Border;
+        btn.onClick.AddListener(() => processor.SetSelectedRecipe(recipe));
+
+        string tip = recipe == null
+            ? "Automatic: the first item that arrives picks the recipe"
+            : RecipeName(recipe) + ":  " + recipe.Describe() + "  (" + recipe.processTime.ToString("0.#") + "s)";
+        AddTrigger(slot.Root, EventTriggerType.PointerEnter, () => inspectorTooltipText.text = tip);
+        AddTrigger(slot.Root, EventTriggerType.PointerExit, () => inspectorTooltipText.text = "");
+
+        recipePicks.Add(new RecipePick { Recipe = recipe, Slot = slot });
+    }
+
+    /// <summary>A recipe's name = what it makes, e.g. "Gear" or "Circuit + Scrap".</summary>
+    private static string RecipeName(RecipeDefinition r)
+    {
+        var names = new List<string>();
+        foreach (var s in r.Outputs)
+            if (s != null && s.item != null && !names.Contains(s.item.itemName)) names.Add(s.item.itemName);
+        return names.Count > 0 ? string.Join(" + ", names) : r.name;
+    }
+
+    /// <summary>Window title: building name, plus the recipe it is making ("Assembler Mk1  -  Gear").</summary>
+    private void UpdateProcessorTitle(RecipeDefinition r)
+    {
+        if (selectedBuilding == null) return;
+        string baseName = selectedBuilding.Definition != null ? selectedBuilding.Definition.displayName : selectedBuilding.name;
+        inspectorWindow.Title.text = r != null ? baseName + "  -  " + RecipeName(r) : baseName;
+    }
+
+    /// <summary>One recipe line: [2 x icon] + [1 x icon]  ->  [1 x icon]   text (time). Click to select it.</summary>
     private RecipeRow BuildRecipeRow(RecipeDefinition r)
     {
         var row = CreateRow(inspectorOptionsParent, 56f);
         var bg = row.gameObject.AddComponent<Image>();
         bg.color = new Color(1f, 1f, 1f, 0.05f);
-        bg.raycastTarget = false;
+        bg.raycastTarget = true; // clickable
+
+        var proc = liveProcessor;
+        var rowBtn = row.gameObject.AddComponent<Button>();
+        rowBtn.targetGraphic = bg;
+        rowBtn.onClick.AddListener(() => proc.SetSelectedRecipe(r));
+
         row.GetComponent<HorizontalLayoutGroup>().padding = new RectOffset(8, 8, 4, 4);
 
         AddStackSlots(row, r.Inputs);
@@ -1640,6 +1731,7 @@ public class UIManager : MonoBehaviour
     private void RebuildFlow(RecipeDefinition recipe)
     {
         flowRecipe = recipe;
+        UpdateProcessorTitle(recipe);
         ClearChildren(flowInputsRow);
         ClearChildren(flowOutputsRow);
         flowInputs.Clear();
@@ -1647,7 +1739,7 @@ public class UIManager : MonoBehaviour
 
         if (recipe == null)
         {
-            CreateLabel(flowInputsRow, "Waiting for items", 13, 150f);
+            CreateLabel(flowInputsRow, "Choose a recipe or feed items", 13, 190f);
             return;
         }
 
@@ -1711,10 +1803,20 @@ public class UIManager : MonoBehaviour
     private void RefreshProcessorLive()
     {
         Processor p = liveProcessor;
-        RecipeDefinition active = p.ActiveRecipe;
+        RecipeDefinition active = p.DisplayRecipe;
         if (active != flowRecipe) RebuildFlow(active);
 
         SetBar(p.Progress01);
+
+        // Recipe picker: name of the selection + highlight the chosen slot (Auto when nothing is selected).
+        if (recipeNameText != null)
+        {
+            recipeNameText.text = p.SelectedRecipe != null
+                ? "Selected: " + RecipeName(p.SelectedRecipe)
+                : "Automatic (the first item to arrive picks the recipe)";
+        }
+        foreach (var pick in recipePicks)
+            pick.Slot.Border.color = pick.Recipe == p.SelectedRecipe ? SlotBorderActive : SlotBorder;
 
         foreach (var fs in flowInputs)
         {

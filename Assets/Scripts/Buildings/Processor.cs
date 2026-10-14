@@ -5,18 +5,18 @@ using UnityEngine;
 /// <summary>
 /// A machine that converts items according to recipes (Smelter, Assembler, Refinery, ...).
 ///
+///  - The player can pick a recipe in the machine window (SelectedRecipe). A machine with a
+///    selected recipe only accepts that recipe's inputs.
+///  - With no selection ("Auto") the first item that arrives picks the recipe (the first
+///    recipe that uses it), like before.
 ///  - A recipe can need several different input items (and several of each) and can
 ///    produce several different output items.
-///  - Arriving items are collected in an input buffer. The first item that arrives picks
-///    the recipe (the first recipe that uses it); after that the machine only accepts
-///    that recipe's inputs, so the belt blocks on anything else.
 ///  - When every input is present the machine consumes them, works for processTime,
 ///    then queues the outputs. Outputs leave through the front one at a time.
-///  - The machine goes back to "any recipe" once its buffer is empty and it is not crafting.
 /// </summary>
 public class Processor : FactoryBuilding
 {
-    [Tooltip("All recipes this machine can run. The first input item that arrives decides which one is used.")]
+    [Tooltip("All recipes this machine can run. The player can choose one in the machine window.")]
     public List<RecipeDefinition> recipes = new List<RecipeDefinition>();
 
     [HideInInspector, Tooltip("Legacy single recipe field, still honoured so old prefabs keep working.")]
@@ -27,14 +27,21 @@ public class Processor : FactoryBuilding
 
     private readonly Dictionary<ItemDefinition, int> buffer = new Dictionary<ItemDefinition, int>();
     private readonly List<ItemDefinition> pendingOutputs = new List<ItemDefinition>();
-    private RecipeDefinition activeRecipe;
+    private RecipeDefinition activeRecipe;     // recipe currently in use (auto-picked or selected)
+    private RecipeDefinition selectedRecipe;   // recipe chosen by the player (null = auto)
     private bool crafting;
     private float processTimer;
 
     // ---- Read-only state for the machine window ----
 
-    /// <summary>The recipe this machine is currently locked to (null when idle).</summary>
+    /// <summary>The recipe this machine is currently locked to by incoming items (null when idle).</summary>
     public RecipeDefinition ActiveRecipe => activeRecipe;
+
+    /// <summary>The recipe the player chose (null = automatic).</summary>
+    public RecipeDefinition SelectedRecipe => selectedRecipe;
+
+    /// <summary>What the window should show: the active recipe, else the selected one.</summary>
+    public RecipeDefinition DisplayRecipe => activeRecipe != null ? activeRecipe : selectedRecipe;
 
     /// <summary>True while the craft timer is running.</summary>
     public bool IsCrafting => crafting;
@@ -84,6 +91,58 @@ public class Processor : FactoryBuilding
         if (recipe != null && !recipes.Contains(recipe)) yield return recipe;
     }
 
+    public bool CanRun(RecipeDefinition r)
+    {
+        if (r == null) return false;
+        foreach (var x in GetAllRecipes()) if (x == r) return true;
+        return false;
+    }
+
+    // ---------------------------------------------------------------
+    // Recipe selection
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Player picks a recipe (null = automatic). Changing the recipe empties the input
+    /// buffer and cancels the current craft; the item already leaving the machine is kept.
+    /// </summary>
+    public void SetSelectedRecipe(RecipeDefinition r)
+    {
+        if (r == selectedRecipe) return;
+        if (r != null && !CanRun(r)) return;
+
+        selectedRecipe = r;
+        ResetWork();
+    }
+
+    private void ResetWork()
+    {
+        buffer.Clear();
+        pendingOutputs.Clear();
+        activeRecipe = null;
+        crafting = false;
+        processTimer = 0f;
+    }
+
+    // ---------------------------------------------------------------
+    // Copy / paste settings
+    // ---------------------------------------------------------------
+
+    public override bool CopySettings(BuildingSettings clip)
+    {
+        clip.kind = "Processor";
+        clip.recipe = DisplayRecipe;
+        return true;
+    }
+
+    public override bool PasteSettings(BuildingSettings clip)
+    {
+        if (clip == null || clip.kind != "Processor") return false;
+        if (clip.recipe != null && !CanRun(clip.recipe)) return false; // this machine can't make it
+        SetSelectedRecipe(clip.recipe);
+        return true;
+    }
+
     // ---------------------------------------------------------------
     // Item flow
     // ---------------------------------------------------------------
@@ -96,13 +155,11 @@ public class Processor : FactoryBuilding
         RecipeDefinition r = activeRecipe;
         if (r == null)
         {
-            r = FindRecipe(def);
+            r = selectedRecipe != null ? selectedRecipe : FindRecipe(def);
             if (r == null || !r.IsValid) return false;
         }
-        else if (!r.UsesInput(def))
-        {
-            return false; // locked to a different recipe
-        }
+
+        if (!r.UsesInput(def)) return false; // not an input of the (selected/locked) recipe
 
         int have = GetBuffered(def);
         if (have >= GetCapacity(r, def)) return false; // that input is full
@@ -176,7 +233,7 @@ public class Processor : FactoryBuilding
         else if (activeRecipe != null)
         {
             if (heldItem == null && pendingOutputs.Count == 0 && HasAllInputs(activeRecipe)) StartCraft();
-            else if (BufferIsEmpty()) activeRecipe = null; // free to pick any recipe again
+            else if (BufferIsEmpty() && pendingOutputs.Count == 0) activeRecipe = null; // free to pick again
         }
     }
 
@@ -192,6 +249,7 @@ public class Processor : FactoryBuilding
         s.crafting = crafting;
         s.timer = processTimer;
         if (activeRecipe != null) s.recipe = activeRecipe.name;
+        if (selectedRecipe != null) s.selectedRecipe = selectedRecipe.name;
 
         foreach (var kv in buffer)
         {
@@ -210,8 +268,15 @@ public class Processor : FactoryBuilding
         buffer.Clear();
         pendingOutputs.Clear();
         activeRecipe = null;
+        selectedRecipe = null;
         crafting = false;
         processTimer = 0f;
+
+        if (!string.IsNullOrEmpty(s.selectedRecipe))
+        {
+            foreach (var rec in GetAllRecipes())
+                if (rec.name == s.selectedRecipe) { selectedRecipe = rec; break; }
+        }
 
         RecipeDefinition r = null;
         if (!string.IsNullOrEmpty(s.recipe))

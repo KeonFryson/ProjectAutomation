@@ -64,6 +64,24 @@ public class Miner : FactoryBuilding
         return false; // miners only produce, never receive
     }
 
+    // ---- Copy / paste settings ----
+
+    public override bool CopySettings(BuildingSettings clip)
+    {
+        if (producedItem == null) return false;
+        clip.kind = "Miner";
+        clip.item = producedItem;
+        return true;
+    }
+
+    public override bool PasteSettings(BuildingSettings clip)
+    {
+        if (clip == null || clip.kind != "Miner" || clip.item == null) return false;
+        if (!availableItems.Contains(clip.item)) return false; // this miner can't mine it
+        SetProducedItem(clip.item);
+        return true;
+    }
+
     // ---- Save / load ----
 
     public override void CaptureState(BuildingSave s)
