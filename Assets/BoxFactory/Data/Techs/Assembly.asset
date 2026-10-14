@@ -17,7 +17,7 @@ MonoBehaviour:
   prerequisites:
   - {fileID: 11400000, guid: 866829111c0c53443ab6eec6f675dcf6, type: 2}
   cost:
-  - item: {fileID: 0}
+  - item: {fileID: 11400000, guid: 8f5ce0ef6b160224f941166dc876dab6, type: 2}
     amount: 0
   unlocks:
   - {fileID: 11400000, guid: 1460801d9c8e68a49a19c559172e22d5, type: 2}
