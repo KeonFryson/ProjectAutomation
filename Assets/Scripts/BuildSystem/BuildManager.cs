@@ -10,13 +10,17 @@ using UnityEngine.InputSystem;
 ///   1-9                          - pick a building from the hotbar
 ///   Move mouse                   - ghost preview snaps to the grid (green = valid, red = blocked)
 ///   R                            - rotate the ghost / hovered building clockwise
-///   Left click on the grid       - place the building (free)
-///   Left click + drag            - (1x1 buildings) place on every cell you drag over
+///   Left click on the grid       - place the building (free), facing the ghost's direction
+///   Left click + drag            - (1x1 buildings) place on every cell you drag over.
+///                                  Belts follow the drag direction (the previous tile turns to make corners).
 ///   Left click on a building     - open its window (when not placing)
 ///   Right click / Escape         - cancel placement
 ///   Right click + hold (1 sec)   - delete a placed building
 ///   Shift + Right click / Ctrl+C - copy settings of the hovered building (recipe, mined item)
 ///   Shift + Left click / Ctrl+V  - paste settings onto the hovered building (hold + drag to paste on many)
+///
+/// Buildings never rotate themselves because they touch: a belt feeds the tile it points at and
+/// that is all. The only automatic facing is the drag direction while you drag-place belts.
 /// Buildings larger than 1x1 are placed with the mouse over their center cell.
 /// Placing is free; which buildings you can place is gated by the tech tree.
 /// </summary>
@@ -41,14 +45,11 @@ public class BuildManager : MonoBehaviour
     private SpriteRenderer ghostRenderer;
     private SpriteRenderer ghostArrows;
     private Direction currentFacing = Direction.Right;
-    private bool facingManuallySet;
     private bool isDragging;
     private Vector2Int lastDragCell;
 
-    // The tile we just dragged from (only valid while placing a dragged tile).
-    // Lets auto-connect tell a corner turn apart from a parallel line.
-    private Vector2Int dragPrevCell;
-    private bool hasDragPrev;
+    // The last building placed by the current click/drag (so a drag can turn the previous belt).
+    private FactoryBuilding lastPlaced;
 
     // Last cell we pasted settings onto while Shift+dragging (so we paste once per cell).
     private Vector2Int lastPasteCell = new Vector2Int(int.MinValue, int.MinValue);
@@ -81,14 +82,9 @@ public class BuildManager : MonoBehaviour
         if (keyboard != null && keyboard.rKey.wasPressedThisFrame)
         {
             if (IsPlacing)
-            {
                 currentFacing = DirectionUtil.RotateClockwise(currentFacing);
-                facingManuallySet = true;
-            }
             else
-            {
                 HandleRotatePlacedBuilding(mouse);
-            }
         }
 
         if (!IsPlacing) HandleSettingsClipboard(mouse, keyboard, shiftHeld);
@@ -110,7 +106,8 @@ public class BuildManager : MonoBehaviour
         {
             isDragging = single; // only 1x1 buildings can be drag-placed
             lastDragCell = cursorCell;
-            if (CanPlace(anchor) && !PlaceBuilding(anchor))
+            lastPlaced = null;
+            if (CanPlace(anchor) && !PlaceBuilding(anchor, currentFacing))
                 isDragging = false; // building can't be placed (locked or missing prefab)
         }
         else if (isDragging && mouse.leftButton.isPressed)
@@ -206,9 +203,24 @@ public class BuildManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Single-cell drag placement: steps one cell at a time so belts stay connected.</summary>
+    // ---------------------------------------------------------------
+    // Drag placement
+    // ---------------------------------------------------------------
+
+    private static Direction DirFrom(Vector2Int v)
+    {
+        if (Mathf.Abs(v.x) >= Mathf.Abs(v.y)) return v.x >= 0 ? Direction.Right : Direction.Left;
+        return v.y >= 0 ? Direction.Up : Direction.Down;
+    }
+
+    /// <summary>
+    /// Single-cell drag placement: steps one cell at a time. Belts face the direction of the drag,
+    /// and the tile we just dragged from turns to follow it, which makes corners.
+    /// </summary>
     private void DragTo(Vector2Int target)
     {
+        bool belts = selectedDefinition != null && selectedDefinition.prefab is ConveyorBelt;
+
         Vector2Int c = lastDragCell;
         while (c != target)
         {
@@ -221,12 +233,13 @@ public class BuildManager : MonoBehaviour
             lastDragCell = c;
             if (GridManager.Instance.IsOccupied(c)) continue;
 
-            dragPrevCell = prev;
-            hasDragPrev = true;
-            bool placed = PlaceBuilding(c);
-            hasDragPrev = false;
+            Direction dir = belts ? DirFrom(c - prev) : currentFacing;
 
-            if (!placed)
+            // The belt we just placed in this drag follows the drag direction.
+            if (belts && lastPlaced != null && lastPlaced.GridPosition == prev && lastPlaced is ConveyorBelt)
+                lastPlaced.SetDirection(dir);
+
+            if (!PlaceBuilding(c, dir))
             {
                 isDragging = false;
                 return;
@@ -288,7 +301,6 @@ public class BuildManager : MonoBehaviour
 
         selectedDefinition = def;
         currentFacing = Direction.Right;
-        facingManuallySet = false;
         EnsureGhost();
     }
 
@@ -300,103 +312,34 @@ public class BuildManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Assumes CanPlace(anchor) was checked. Returns false if the building is locked or has no prefab.</summary>
-    private bool PlaceBuilding(Vector2Int anchor)
+    /// <summary>
+    /// Places the selected building facing 'facing'. Assumes the cells are free.
+    /// Returns false if the building is locked or has no prefab.
+    /// </summary>
+    private bool PlaceBuilding(Vector2Int anchor, Direction facing)
     {
         if (selectedDefinition == null || selectedDefinition.prefab == null) return false;
         if (!ResearchManager.IsBuildingUnlocked(selectedDefinition)) return false;
 
-        FactoryBuilding prefab = selectedDefinition.prefab;
-        Direction facing = currentFacing;
-        bool single = SelectedSize == Vector2Int.one;
-
-        // Auto-facing only makes sense for single tiles; bigger machines use the ghost's rotation.
-        if (!facingManuallySet && single)
-        {
-            // Auto-connect is belts only: other buildings keep the ghost's facing
-            // and never get rotated by a newly placed belt.
-            if (prefab is ConveyorBelt)
-            {
-                AutoConnectNeighbors(anchor);
-                facing = ResolveFacing(anchor, currentFacing);
-            }
-        }
-
-        FactoryBuilding instance = Instantiate(prefab);
+        FactoryBuilding instance = Instantiate(selectedDefinition.prefab);
         instance.Initialize(anchor, facing, selectedDefinition);
+        lastPlaced = instance;
         return true;
     }
 
     // ---------------------------------------------------------------
-    // Auto-connect (single-cell buildings only get rotated automatically)
+    // Belt helpers (ghost preview only)
     // ---------------------------------------------------------------
 
     private static readonly Direction[] AllDirections =
         { Direction.Up, Direction.Right, Direction.Down, Direction.Left };
 
     private static Direction Opposite(Direction d) => (Direction)(((int)d + 2) % 4);
-    private static bool CanOutput(FactoryBuilding b) => b.HasOutput;
-    private static bool CanAccept(FactoryBuilding b) => b.HasInput;
-
-    // True if 'n' is a conveyor belt whose facing is perpendicular to the direction
-    // from the new tile to it, i.e. the new tile would be touching its side.
-    private static bool IsSideBelt(FactoryBuilding n, Direction dirToNeighbor)
-    {
-        return n is ConveyorBelt && ((int)n.Facing % 2) != ((int)dirToNeighbor % 2);
-    }
-
-    private void AutoConnectNeighbors(Vector2Int cell)
-    {
-        var grid = GridManager.Instance;
-        foreach (Direction dir in AllDirections)
-        {
-            FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(dir));
-            if (n == null || !(n is ConveyorBelt) || !CanOutput(n) || !n.IsSingleCell) continue;
-
-            // Don't turn a neighboring belt sideways into us (parallel lines),
-            // unless it's the tile we just dragged from (that's a corner).
-            if (IsSideBelt(n, dir) && !(hasDragPrev && dragPrevCell == n.GridPosition)) continue;
-
-            if (grid.IsOccupied(n.OutputCell)) continue;
-            if (n.Facing == dir) continue;
-
-            Direction towardNew = Opposite(dir);
-            if (n.Facing != towardNew) n.SetDirection(towardNew);
-        }
-    }
-
-    private Direction ResolveFacing(Vector2Int cell, Direction fallback)
-    {
-        var grid = GridManager.Instance;
-
-        Direction? feederFacing = null;
-        Direction? anyReceiver = null;
-
-        foreach (Direction dir in AllDirections)
-        {
-            FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(dir));
-            if (n == null) continue;
-
-            bool feedsUs = CanOutput(n) && n.OutputCell == cell;
-            if (feedsUs) feederFacing = n.Facing;
-            else if (CanAccept(n) && anyReceiver == null && !IsSideBelt(n, dir)) anyReceiver = dir;
-        }
-
-        if (feederFacing.HasValue)
-        {
-            var ahead = cell + DirectionUtil.ToVector(feederFacing.Value);
-            var aheadBuilding = grid.GetBuilding(ahead);
-            if (aheadBuilding != null && CanAccept(aheadBuilding)) return feederFacing.Value;
-        }
-
-        if (anyReceiver.HasValue) return anyReceiver.Value;
-        if (feederFacing.HasValue) return feederFacing.Value;
-        return fallback;
-    }
 
     /// <summary>
     /// Same logic as ConveyorBelt.ResolveIncoming, but for a belt that isn't placed yet:
-    /// fed from behind = straight, fed from the side = corner.
+    /// fed from behind = straight, fed only from the side = corner.
+    /// Only tiles that really push into the cell count.
     /// </summary>
     private Direction ResolveGhostIncoming(Vector2Int cell, Direction facing)
     {
@@ -409,7 +352,7 @@ public class BuildManager : MonoBehaviour
             if (d == facing) continue;
 
             FactoryBuilding n = grid.GetBuilding(cell + DirectionUtil.ToVector(d));
-            if (n == null || !n.HasOutput || n.OutputCell != cell) continue;
+            if (n == null || !n.FeedsCell(cell)) continue;
 
             if (d == back) return facing;
             if (side == null) side = Opposite(d);
@@ -418,35 +361,11 @@ public class BuildManager : MonoBehaviour
         return side ?? facing;
     }
 
-    /// <summary>Called for every cell freed by a demolished building.</summary>
-    public void OnBuildingRemoved(Vector2Int removedCell)
-    {
-        var grid = GridManager.Instance;
-        foreach (Direction dir in AllDirections)
-        {
-            FactoryBuilding n = grid.GetBuilding(removedCell + DirectionUtil.ToVector(dir));
-            if (n == null || !(n is ConveyorBelt) || !CanOutput(n) || !n.IsSingleCell) continue;
-            if (n.OutputCell != removedCell) continue;
-
-            Direction? best = null;
-            foreach (Direction d in AllDirections)
-            {
-                Vector2Int otherCell = n.GridPosition + DirectionUtil.ToVector(d);
-                if (otherCell == removedCell) continue;
-
-                FactoryBuilding r = grid.GetBuilding(otherCell);
-                if (r == null || !CanAccept(r)) continue;
-
-                // Skip buildings that feed n, or we'd create a loop.
-                if (CanOutput(r) && r.OutputCell == n.GridPosition) continue;
-
-                best = d;
-                break;
-            }
-
-            if (best.HasValue) n.SetDirection(best.Value);
-        }
-    }
+    /// <summary>
+    /// Called for every cell freed by a demolished building. Intentionally empty: belts keep
+    /// their facing when a neighbour disappears (they never re-route by themselves).
+    /// </summary>
+    public void OnBuildingRemoved(Vector2Int removedCell) { }
 
     // ---------------------------------------------------------------
     // Ghost
@@ -456,6 +375,7 @@ public class BuildManager : MonoBehaviour
     {
         selectedDefinition = null;
         isDragging = false;
+        lastPlaced = null;
         if (ghost != null) Destroy(ghost);
         if (ghostArrows != null) Destroy(ghostArrows.gameObject);
         ghostArrows = null;
@@ -486,13 +406,12 @@ public class BuildManager : MonoBehaviour
         Vector3 center = Footprint.WorldCenter(anchor, SelectedSize, currentFacing, grid.cellSize);
         ghost.transform.position = center;
 
-        // Belts: work out the facing/corner the placed belt will have, so base art and arrows match it.
+        // The ghost shows exactly the facing the building will get when placed.
         bool isBelt = def != null && def.prefab is ConveyorBelt && SelectedSize == Vector2Int.one;
         Direction shownFacing = currentFacing;
         Sprite arrowSprite = null;
         if (isBelt)
         {
-            shownFacing = facingManuallySet ? currentFacing : ResolveFacing(anchor, currentFacing);
             Direction incoming = ResolveGhostIncoming(anchor, shownFacing);
 
             double fps = def.prefab.itemTravelSpeed * Mathf.Max(0.01f, def.speedMultiplier) * 32;

@@ -12,6 +12,8 @@ using UnityEngine;
 /// </summary>
 public class Miner : FactoryBuilding
 {
+    public override bool HasInput => false; // miners only produce, never receive
+
     [Tooltip("The raw item this miner currently produces (e.g. Iron Ore). Changed at runtime from the machine window.")]
     public ItemDefinition producedItem;
 

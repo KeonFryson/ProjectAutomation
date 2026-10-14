@@ -42,6 +42,22 @@ public class Splitter : FactoryBuilding
         return false;
     }
 
+    /// <summary>A splitter takes items from the back and sides, never from its output cells.</summary>
+    public override bool AcceptsFrom(FactoryBuilding source)
+    {
+        for (int i = 0; i < Lanes; i++)
+            foreach (var c in source.Cells)
+                if (c == OutCell(i)) return false;
+        return true;
+    }
+
+    public override bool WouldAccept(ItemDefinition def)
+    {
+        for (int i = 0; i < Lanes; i++)
+            if (laneItem[i] == null) return true;
+        return false;
+    }
+
     /// <summary>The building on output i if it can receive from us, otherwise null.</summary>
     private FactoryBuilding Candidate(int i)
     {
@@ -49,6 +65,7 @@ public class Splitter : FactoryBuilding
         if (n == null || n == this || !n.HasInput) return null;
         foreach (var c in Cells)
             if (n.FeedsCell(c)) return null; // it pushes into us: that's an input, not an output
+        if (!n.AcceptsFrom(this)) return null;
         return n;
     }
 

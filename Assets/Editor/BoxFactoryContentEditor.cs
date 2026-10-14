@@ -57,10 +57,11 @@ public class BoxFactoryContentEditor : EditorWindow
 
     private static string CategoryFor(Type t)
     {
-        if (t == typeof(ConveyorBelt) || t == typeof(Splitter)) return "Logistics";
+        if (t == typeof(ConveyorBelt) || t == typeof(Splitter) || t == typeof(Inserter)) return "Logistics";
         if (t == typeof(Miner) || t == typeof(Processor)) return "Production";
         if (t == typeof(ResearchLab)) return "Research";
         if (t == typeof(Portal)) return "Endgame";
+        
         return "Buildings";
     }
 

@@ -10,6 +10,10 @@ using UnityEngine;
 ///  - Holds at most one "in transit" item and moves it to the front edge,
 ///    then pushes it into whatever building is in front of it (OutputCell).
 ///  - Speed comes from BuildingDefinition.speedMultiplier (no paid upgrades).
+///
+/// Connections are directional: a building only feeds the cell its output points at, and the
+/// receiver decides (AcceptsFrom / TryAcceptInput) whether it takes the item. Touching alone
+/// never connects anything.
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
 public abstract class FactoryBuilding : MonoBehaviour
@@ -26,16 +30,38 @@ public abstract class FactoryBuilding : MonoBehaviour
     /// <summary>The cell this building pushes items into.</summary>
     public Vector2Int OutputCell => Footprint.OutputCell(GridPosition, Size, Facing);
 
-    /// <summary>False for buildings that never receive items (Miner).</summary>
+    /// <summary>False for buildings that never receive items (Miner, Inserter).</summary>
     public virtual bool HasInput => true;
-    /// <summary>False for buildings that never send items out (Seller, ResearchLab).</summary>
+    /// <summary>False for buildings that never send items out by pushing (Seller, ResearchLab, Inserter).</summary>
     public virtual bool HasOutput => true;
 
     /// <summary>
     /// True if this building pushes items into the given cell. Buildings with more than one
-    /// output (Splitter) override this so belts and the auto-connect logic see all of them.
+    /// output (Splitter) override this so belts see all of them.
     /// </summary>
     public virtual bool FeedsCell(Vector2Int cell) => HasOutput && OutputCell == cell;
+
+    /// <summary>
+    /// Can this building take a push from 'source'? Belts refuse the tile they face, so two
+    /// belts pointing at each other never pass items back and forth.
+    /// </summary>
+    public virtual bool AcceptsFrom(FactoryBuilding source) { return true; }
+
+    /// <summary>
+    /// Would TryAcceptInput take this item right now? Inserters ask before grabbing an item.
+    /// Override in buildings with their own acceptance rules (Processor, ResearchLab, Portal).
+    /// </summary>
+    public virtual bool WouldAccept(ItemDefinition def) { return HasInput && heldItem == null; }
+
+    /// <summary>Removes and returns the carried item (used by inserters). Null if there is none.</summary>
+    public virtual ItemVisual TakeHeldItem()
+    {
+        if (!HasOutput || heldItem == null) return null;
+        var item = heldItem;
+        heldItem = null;
+        moveProgress = 0f;
+        return item;
+    }
 
     // ---------------------------------------------------------------
     // Copy / paste settings (override in Miner, Processor, ...)
@@ -269,7 +295,7 @@ public abstract class FactoryBuilding : MonoBehaviour
     protected virtual void TryPushOutput()
     {
         FactoryBuilding neighbor = GetNeighborInFacing();
-        if (neighbor != null && neighbor != this && neighbor.TryAcceptInput(heldItem))
+        if (neighbor != null && neighbor != this && neighbor.AcceptsFrom(this) && neighbor.TryAcceptInput(heldItem))
         {
             heldItem = null;
             moveProgress = 0f;
@@ -350,7 +376,7 @@ public abstract class FactoryBuilding : MonoBehaviour
         if (heldItem != null) { heldItem.Release(); heldItem = null; }
         Destroy(gameObject);
 
-        // Let neighbors re-route now that these cells are empty.
+        // Hook kept for BuildManager (does nothing now: belts never re-route on their own).
         if (BuildManager.Instance != null)
             foreach (var c in removed) BuildManager.Instance.OnBuildingRemoved(c);
     }

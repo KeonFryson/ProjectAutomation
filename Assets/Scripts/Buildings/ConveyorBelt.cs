@@ -5,6 +5,9 @@ using UnityEngine;
 /// facing away from its direction to the edge it faces, then hands it to
 /// whatever is next. Upgrading a belt makes it move items faster.
 ///
+/// Connection rule: a belt only receives from tiles whose output points at it, and it never
+/// accepts from the tile it faces. Touching neighbours that don't point at it are ignored.
+///
 /// Draws animated chevrons on top of its colored square. The chevrons scroll
 /// at exactly the speed items travel (itemTravelSpeed * speedMultiplier), all
 /// belts share one clock so neighbours stay in phase, and the tile becomes a
@@ -35,6 +38,15 @@ public class ConveyorBelt : FactoryBuilding
             Direction dir = incomingValid ? incoming : Facing;
             return -(Vector3)(Vector2)DirectionUtil.ToVector(dir) * 0.5f;
         }
+    }
+
+    /// <summary>A belt never takes items from the tile it faces (head-on belts don't swap items).</summary>
+    public override bool AcceptsFrom(FactoryBuilding source)
+    {
+        Vector2Int front = GridPosition + DirectionUtil.ToVector(Facing);
+        foreach (var c in source.Cells)
+            if (c == front) return false;
+        return true;
     }
 
     protected override void Update()
@@ -72,7 +84,8 @@ public class ConveyorBelt : FactoryBuilding
 
     /// <summary>
     /// Works out which way items are travelling as they enter this tile.
-    /// Fed from behind (or not fed at all) = straight. Fed from the side = corner.
+    /// Only tiles that actually push into this cell count (FeedsCell).
+    /// Fed from behind (or not fed at all) = straight. Fed only from the side = corner.
     /// </summary>
     private Direction ResolveIncoming()
     {
@@ -82,10 +95,10 @@ public class ConveyorBelt : FactoryBuilding
 
         foreach (Direction d in AllDirections)
         {
-            if (d == Facing) continue;
+            if (d == Facing) continue; // the tile we face is never a feeder
 
             FactoryBuilding n = grid.GetBuilding(GridPosition + DirectionUtil.ToVector(d));
-            if (n == null || n == this || !n.HasOutput || n.OutputCell != GridPosition) continue;
+            if (n == null || n == this || !n.FeedsCell(GridPosition)) continue;
 
             if (d == back) return Facing; // a feeder behind us always wins: straight belt
             if (side == null) side = Opposite(d);
