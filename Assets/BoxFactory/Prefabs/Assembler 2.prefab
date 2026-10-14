@@ -108,4 +108,9 @@ MonoBehaviour:
   recipes:
   - {fileID: 11400000, guid: 2803e9e8c58d180409d7614d11788cc9, type: 2}
   - {fileID: 11400000, guid: d6e86da341cdfef47a9f4927101e0565, type: 2}
+  - {fileID: 11400000, guid: fa79b34f11608c449831095244514653, type: 2}
+  - {fileID: 11400000, guid: 4ec0332fe8fc63742b81ce265b629a45, type: 2}
+  - {fileID: 11400000, guid: 914c8f29adfc27644a3d8b8cbbf1d8a5, type: 2}
+  - {fileID: 11400000, guid: f5e1962a77b34594ab73e262191f1430, type: 2}
   recipe: {fileID: 0}
+  inputBufferBatches: 2

@@ -21,5 +21,4 @@ MonoBehaviour:
     amount: 20
   - item: {fileID: 11400000, guid: cebbb34c196c66e489f3a1b0109991a3, type: 2}
     amount: 20
-  unlocks:
-  - {fileID: 11400000, guid: 3f6cd79f65a5d3141854c93e17a53f32, type: 2}
+  unlocks: []
