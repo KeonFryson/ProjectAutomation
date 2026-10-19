@@ -18,7 +18,7 @@ MonoBehaviour:
     win the game.
   category: Endgame
   prefab: {fileID: 7271782195078851330, guid: 3f15b27b2b4a3ac41a8a8e27d222521e, type: 3}
-  size: {x: 3, y: 3}
+  size: {x: 5, y: 5}
   speedMultiplier: 1
   unlockedByDefault: 0
   iconColor: {r: 0.2, g: 0.9, b: 0.95, a: 1}

@@ -5,24 +5,26 @@ using UnityEngine;
 /// <summary>
 /// Factorio-style underground belt. Two pieces form a pair: an ENTRANCE and an EXIT.
 ///
+///  - Works in all four directions (up/down/left/right).
 ///  - Place a piece, then place another one facing the SAME direction in front of it (up to
 ///    maxDistance cells away). The second piece automatically becomes the exit.
+///  - The tunnel passes UNDER anything in between: belts (also crossing ones), machines,
+///    splitters, underground belts facing another way, and other complete pairs.
 ///  - The entrance takes items from belts behind/beside it (never from the cell it faces).
-///    Items disappear underground, travel at belt speed and come out of the exit, which pushes
-///    them into whatever is in front of it. Anything can be built in between.
-///  - Pairing = nearest unpaired entrance behind an exit. Pairs may be nested, never interleaved.
-///  - Demolishing one piece leaves the other as an orphan (a red dot shows it is unpaired);
-///    placing a new piece in range pairs it again. Rotating a piece breaks its pair.
-///  - Throughput equals a belt of the same speedMultiplier.
+///    Items travel underground at belt speed and come out of the exit, which pushes them
+///    into whatever is in front of it.
+///  - Pairing = nearest unpaired same-facing piece. Pairs may be nested, never interleaved.
+///  - Demolishing one piece leaves the other as an orphan (red dot). Placing a new piece in
+///    range pairs it again. Rotating a piece (R) breaks its pair and re-pairs it in the new direction.
 ///
-/// Save format (no SaveData changes needed): BuildingSave.crafting = "is exit",
-/// laneItems / laneProgress = items travelling underground (stored on the exit).
+/// Save format: BuildingSave.crafting = "is exit", laneItems / laneProgress = items
+/// travelling underground (stored on the exit).
 /// </summary>
 public class UndergroundBelt : FactoryBuilding
 {
     public enum Role { Entrance, Exit }
 
-    [Min(2), Tooltip("Furthest exit, in cells from the entrance (5 = up to 4 cells between them, like Factorio's basic underground).")]
+    [Min(2), Tooltip("Furthest exit, in cells from the entrance (5 = up to 4 cells between them).")]
     public int maxDistance = 5;
 
     private struct Transit
@@ -44,7 +46,7 @@ public class UndergroundBelt : FactoryBuilding
     /// <summary>True when both pieces point at each other.</summary>
     public bool IsPaired { get { return partner != null && partner.partner == this; } }
 
-    // Only entrances receive, only exits send (so belts, splitters and inserters treat each piece correctly).
+    // Only entrances receive, only exits send.
     public override bool HasInput => role == Role.Entrance;
     public override bool HasOutput => role == Role.Exit;
 
@@ -62,12 +64,10 @@ public class UndergroundBelt : FactoryBuilding
     // Role + pairing
     // ---------------------------------------------------------------
 
-    void Start()
+    /// <summary>A new (or rotated) piece becomes the exit if an unpaired entrance waits behind it.</summary>
+    private void ResolveRole()
     {
-        if (roleResolved) return; // restored from a save: role already known
         roleResolved = true;
-
-        // A newly placed piece becomes the exit if an unpaired entrance is waiting behind it.
         role = Role.Exit;
         UndergroundBelt entrance = FindUnpaired(-1, Role.Entrance);
         if (entrance != null && entrance.FindUnpaired(+1, Role.Exit) == this) Link(entrance, this);
@@ -75,8 +75,8 @@ public class UndergroundBelt : FactoryBuilding
     }
 
     /// <summary>
-    /// Nearest same-facing piece along the axis that is not yet paired (paired pieces are skipped:
-    /// the tunnel simply passes under them). Returns it only if it has the wanted role.
+    /// Nearest same-facing piece along the axis that is not yet paired. Everything else (belts,
+    /// machines, pieces facing another way, complete pairs) is simply passed under.
     /// sign: +1 = ahead of this piece, -1 = behind it.
     /// </summary>
     private UndergroundBelt FindUnpaired(int sign, Role want)
@@ -86,7 +86,7 @@ public class UndergroundBelt : FactoryBuilding
         for (int d = 1; d <= maxDistance; d++)
         {
             var b = grid.GetBuilding(GridPosition + step * d) as UndergroundBelt;
-            if (b == null || b.Facing != Facing || b.IsPaired) continue;
+            if (b == null || b == this || b.Facing != Facing || b.IsPaired) continue;
             return b.role == want ? b : null;
         }
         return null;
@@ -143,6 +143,18 @@ public class UndergroundBelt : FactoryBuilding
         }
     }
 
+    /// <summary>Rotating breaks the old pair and works out the role again for the new direction.</summary>
+    public override void SetDirection(Direction newDir)
+    {
+        if (newDir == Facing) return;
+        base.SetDirection(newDir);
+
+        Unlink();
+        transit.Clear();
+        roleResolved = false; // resolved again on the next Update
+        shownKey = -1;
+    }
+
     // ---------------------------------------------------------------
     // Item flow
     // ---------------------------------------------------------------
@@ -171,7 +183,11 @@ public class UndergroundBelt : FactoryBuilding
 
     protected override void Update()
     {
-        if (GridManager.Instance != null) ValidateOrLink();
+        if (GridManager.Instance != null)
+        {
+            if (!roleResolved) ResolveRole(); // new piece or just rotated (saves set roleResolved themselves)
+            ValidateOrLink();
+        }
 
         base.Update(); // moves the item across this tile and calls TryPushOutput
 
@@ -325,8 +341,7 @@ public class UndergroundBelt : FactoryBuilding
 }
 
 /// <summary>
-/// Draws the underground belt art at runtime (one small texture per role / facing / paired state),
-/// the same way SquareSpriteFactory and ConveyorArrowSprites avoid needing art files.
+/// Draws the underground belt art at runtime (one small texture per role / facing / paired state).
 /// Belt lane with chevrons on one half, dark tunnel hood on the other.
 /// </summary>
 public static class UndergroundSprites

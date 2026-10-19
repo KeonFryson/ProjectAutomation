@@ -438,6 +438,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5941b83d0cbf4394b9f3a6970057acbe, type: 2}
   - {fileID: 11400000, guid: 294eb139ce3fae94ca1a9259c1272284, type: 2}
   - {fileID: 11400000, guid: 8eaaa91e03fa3f34595a33f1caa2808a, type: 2}
+  - {fileID: 11400000, guid: ed4ee6632c8afbf409aff176b9b007eb, type: 2}
   deletionHoldTime: 0.3
 --- !u!114 &1962065048
 MonoBehaviour:

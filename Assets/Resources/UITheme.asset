@@ -35,7 +35,7 @@ MonoBehaviour:
   techActive: {r: 0.72, g: 0.46, b: 0.1, a: 1}
   techAvailable: {r: 0.3, g: 0.34, b: 0.42, a: 1}
   techLocked: {r: 0.16, g: 0.16, b: 0.18, a: 1}
-  buildMenuSize: {x: 600, y: 460}
+  buildMenuSize: {x: 600, y: 400}
   techWindowSize: {x: 980, y: 660}
   machineWindowSize: {x: 820, y: 620}
   hotbarSlotSize: 52

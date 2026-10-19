@@ -21,6 +21,7 @@ public static class GameBootstrap
         {
             if (Object.FindFirstObjectByType<MainMenu>() == null)
                 new GameObject("MainMenu").AddComponent<MainMenu>();
+            SplashScreen.ShowOnce();   // <-- add this
             return;
         }
 
