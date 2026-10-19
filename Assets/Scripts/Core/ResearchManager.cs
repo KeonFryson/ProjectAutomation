@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 /// <summary>
@@ -173,4 +174,45 @@ public class ResearchManager : MonoBehaviour
         OnTechCompleted?.Invoke();
         OnResearchChanged?.Invoke();
     }
+
+    /// <summary>Cheat method: Completes all research techs and unlocks all buildings.</summary>
+    public void CheatCompleteAllResearch()
+    {
+        foreach (var tech in allTechs)
+        {
+            if (tech != null && !completed.Contains(tech))
+            {
+                completed.Add(tech);
+                foreach (var building in tech.unlocks)
+                {
+                    if (building != null)
+                        unlocked.Add(building);
+                }
+            }
+        }
+
+        Current = null;
+        OnTechCompleted?.Invoke();
+        OnResearchChanged?.Invoke();
+    }
+
+#if UNITY_EDITOR
+    private void OnGUI()
+    {
+        if (!Application.isPlaying) return;
+
+        GUILayout.BeginArea(new Rect(10, 10, 250, 100));
+        GUILayout.BeginVertical("box");
+        GUILayout.Label("Research Cheats", EditorStyles.boldLabel);
+
+        if (GUILayout.Button("Complete All Research", GUILayout.Height(40)))
+        {
+            CheatCompleteAllResearch();
+            Debug.Log("All research completed!");
+        }
+
+        GUILayout.EndVertical();
+        GUILayout.EndArea();
+    }
+#endif
 }

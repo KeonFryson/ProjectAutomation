@@ -13,7 +13,7 @@ public class PauseMenu : MonoBehaviour
     private GameObject overlay;
     private GameObject menuPanel;
     private SaveSlotPanel slotPanel;
-
+    private SettingsPanel settingsPanel;
     private bool open;
     private bool blockedLastFrame;
     private readonly List<Behaviour> frozen = new List<Behaviour>();
@@ -38,7 +38,8 @@ public class PauseMenu : MonoBehaviour
 
         if (open)
         {
-            if (slotPanel.IsOpen) { slotPanel.Close(); menuPanel.SetActive(true); }
+            if (settingsPanel.IsOpen) { settingsPanel.Close(); menuPanel.SetActive(true); }
+            else if (slotPanel.IsOpen) { slotPanel.Close(); menuPanel.SetActive(true); }
             else Close();
         }
         else if (!blockedLastFrame)
@@ -78,10 +79,16 @@ public class PauseMenu : MonoBehaviour
         MenuUI.MakeButton(panel, "Resume", MenuUI.ButtonGreen, 46f, 18).onClick.AddListener(Close);
         MenuUI.MakeButton(panel, "Save Game", MenuUI.ButtonGray, 46f, 18).onClick.AddListener(OpenSave);
         MenuUI.MakeButton(panel, "Load Game", MenuUI.ButtonGray, 46f, 18).onClick.AddListener(OpenLoad);
+        MenuUI.MakeButton(panel, "Settings", MenuUI.ButtonGray, 46f, 18).onClick.AddListener(() =>
+        {
+            menuPanel.SetActive(false);
+            settingsPanel.Show();
+        });
         MenuUI.MakeButton(panel, "Main Menu", MenuUI.ButtonGray, 46f, 18).onClick.AddListener(GoToMainMenu);
         MenuUI.MakeButton(panel, "Quit to Desktop", MenuUI.ButtonRed, 46f, 18).onClick.AddListener(QuitToDesktop);
 
         slotPanel = new SaveSlotPanel(dim, () => menuPanel.SetActive(true));
+        settingsPanel = new SettingsPanel(dim, () => menuPanel.SetActive(true));
 
         overlay.SetActive(false);
     }
@@ -92,6 +99,7 @@ public class PauseMenu : MonoBehaviour
         open = true;
 
         slotPanel.Close();
+        settingsPanel.Close();
         menuPanel.SetActive(true);
         overlay.SetActive(true);
 
@@ -108,7 +116,7 @@ public class PauseMenu : MonoBehaviour
 
         overlay.SetActive(false);
         slotPanel.Close();
-
+        settingsPanel.Close();
         foreach (Behaviour b in frozen) if (b != null) b.enabled = true;
         frozen.Clear();
         Time.timeScale = 1f;

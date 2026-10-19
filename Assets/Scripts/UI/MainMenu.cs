@@ -13,7 +13,7 @@ public class MainMenu : MonoBehaviour
     private SaveSlotPanel slotPanel;
     private Button continueButton;
     private Text continueInfo;
-
+    private SettingsPanel settingsPanel;
     void Awake()
     {
         Time.timeScale = 1f;
@@ -26,10 +26,10 @@ public class MainMenu : MonoBehaviour
     void Update()
     {
         Keyboard kb = Keyboard.current;
-        if (kb != null && kb.escapeKey.wasPressedThisFrame && slotPanel.IsOpen)
+        if (kb != null && kb.escapeKey.wasPressedThisFrame)
         {
-            slotPanel.Close();
-            ShowMain();
+            if (settingsPanel.IsOpen) { settingsPanel.Close(); ShowMain(); }
+            else if (slotPanel.IsOpen) { slotPanel.Close(); ShowMain(); }
         }
     }
 
@@ -74,6 +74,9 @@ public class MainMenu : MonoBehaviour
         Button load = MenuUI.MakeButton(panel, "Load Game", MenuUI.ButtonGray, 52f, 20);
         load.onClick.AddListener(OpenLoad);
 
+        Button settings = MenuUI.MakeButton(panel, "Settings", MenuUI.ButtonGray, 52f, 20);
+        settings.onClick.AddListener(() => { mainPanel.SetActive(false); settingsPanel.Show(); });
+
         Button quit = MenuUI.MakeButton(panel, "Quit", MenuUI.ButtonRed, 52f, 20);
         quit.onClick.AddListener(MenuUI.QuitGame);
 
@@ -81,6 +84,8 @@ public class MainMenu : MonoBehaviour
         continueInfo.color = MenuUI.DimText;
 
         slotPanel = new SaveSlotPanel(bg, ShowMain);
+
+        settingsPanel = new SettingsPanel(bg, ShowMain);
     }
 
     private void ShowMain()

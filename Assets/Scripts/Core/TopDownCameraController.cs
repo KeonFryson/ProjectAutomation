@@ -9,8 +9,10 @@ using UnityEngine.InputSystem;
 /// Movement inputs, in priority order — the first one active each frame wins so they don't fight:
 ///   1. Middle-mouse drag pan
 ///   2. WASD / arrow keys
-///   3. Edge-of-screen pan (optional, off by default so it doesn't fire in the editor when the
-///      mouse is just resting near a panel)
+///   3. Edge-of-screen pan (controlled by GameSettings.EdgePan, off by default so it doesn't
+///      fire in the editor when the mouse is just resting near a panel)
+///
+/// Pan and zoom speeds are multiplied by the player's GameSettings (PanSpeed / ZoomSpeed).
 ///
 /// Zoom is mouse-scroll-wheel driven and (for an orthographic camera) changes orthographic
 /// size directly; for a perspective camera it dollies the rig forward/back along its own
@@ -42,8 +44,7 @@ public class TopDownCameraController : MonoBehaviour
     [SerializeField] private float dragPanSensitivity = 0.05f;
 
     [Header("Pan — Screen Edge")]
-    [Tooltip("Off by default — enable for a classic RTS edge-scroll feel.")]
-    [SerializeField] private bool enableEdgePan = false;
+    [Tooltip("Edge scrolling is switched on/off by the player in Settings (GameSettings.EdgePan). These values only tune it.")]
     [SerializeField] private float edgePanBorderPixels = 12f;
     [SerializeField] private float edgePanSpeed = 20f;
 
@@ -98,7 +99,7 @@ public class TopDownCameraController : MonoBehaviour
         // Priority: drag pan > keyboard pan > edge pan. Only one moves the rig per frame.
         if (enableDragPan && HandleDragPan()) { /* consumed */ }
         else if (enableKeyboardPan && HandleKeyboardPan()) { /* consumed */ }
-        else if (enableEdgePan) { HandleEdgePan(); }
+        else if (GameSettings.EdgePan) { HandleEdgePan(); }
 
         if (clampToBounds) ClampPosition();
     }
@@ -120,7 +121,7 @@ public class TopDownCameraController : MonoBehaviour
         if (input.sqrMagnitude < 0.0001f) return false;
 
         input.Normalize();
-        float speed = panSpeed;
+        float speed = panSpeed * GameSettings.PanSpeed;
         bool sprinting = Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed;
         if (sprinting) speed *= sprintMultiplier;
 
@@ -178,7 +179,7 @@ public class TopDownCameraController : MonoBehaviour
         if (input.sqrMagnitude < 0.0001f) return;
 
         input.Normalize();
-        Move(input * edgePanSpeed * Time.deltaTime);
+        Move(input * edgePanSpeed * GameSettings.PanSpeed * Time.deltaTime);
     }
 
     // ---------------------------------------------------------------
@@ -221,14 +222,16 @@ public class TopDownCameraController : MonoBehaviour
         float scroll = Mouse.current.scroll.ReadValue().y;
         if (Mathf.Abs(scroll) > 0.01f)
         {
+            float step = scroll * zoomSpeed * GameSettings.ZoomSpeed * 0.01f;
+
             if (cam.orthographic)
             {
-                targetOrthoSize = Mathf.Clamp(targetOrthoSize - scroll * zoomSpeed * 0.01f, minOrthoSize, maxOrthoSize);
+                targetOrthoSize = Mathf.Clamp(targetOrthoSize - step, minOrthoSize, maxOrthoSize);
             }
             else
             {
                 targetPerspectiveDistance = Mathf.Clamp(
-                    targetPerspectiveDistance - scroll * zoomSpeed * 0.01f,
+                    targetPerspectiveDistance - step,
                     minPerspectiveDistance, maxPerspectiveDistance);
             }
         }

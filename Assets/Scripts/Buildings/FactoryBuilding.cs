@@ -28,7 +28,7 @@ public abstract class FactoryBuilding : MonoBehaviour
     public IReadOnlyList<Vector2Int> Cells => cells;
 
     /// <summary>The cell this building pushes items into.</summary>
-    public Vector2Int OutputCell => Footprint.OutputCell(GridPosition, Size, Facing);
+    public virtual Vector2Int OutputCell => Footprint.OutputCell(GridPosition, Size, Facing);
 
     /// <summary>False for buildings that never receive items (Miner, Inserter).</summary>
     public virtual bool HasInput => true;

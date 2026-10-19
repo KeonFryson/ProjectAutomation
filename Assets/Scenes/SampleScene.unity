@@ -276,7 +276,6 @@ MonoBehaviour:
   sprintMultiplier: 2
   enableDragPan: 1
   dragPanSensitivity: 0.05
-  enableEdgePan: 0
   edgePanBorderPixels: 12
   edgePanSpeed: 20
   enableZoom: 1
@@ -438,6 +437,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 246650132e800ab4b8b6fdadcdbe106f, type: 2}
   - {fileID: 11400000, guid: 5941b83d0cbf4394b9f3a6970057acbe, type: 2}
   - {fileID: 11400000, guid: 294eb139ce3fae94ca1a9259c1272284, type: 2}
+  - {fileID: 11400000, guid: 8eaaa91e03fa3f34595a33f1caa2808a, type: 2}
   deletionHoldTime: 0.3
 --- !u!114 &1962065048
 MonoBehaviour:

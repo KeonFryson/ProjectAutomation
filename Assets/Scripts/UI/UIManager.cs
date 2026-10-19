@@ -17,6 +17,7 @@ using UnityEngine.UI;
 ///
 /// Colors, sizes, fonts and texts come from the UITheme asset (Assets/Resources/UITheme.asset),
 /// editable in Box Factory > Content Editor > UI. Without the asset, built-in defaults are used.
+/// The bottom hint bar can be hidden by the player (GameSettings.ShowHints).
 /// </summary>
 public class UIManager : MonoBehaviour
 {
@@ -164,6 +165,9 @@ public class UIManager : MonoBehaviour
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         ApplyTheme();
         BuildUI();
+
+        GameSettings.Changed += ApplyHintSetting;
+        ApplyHintSetting();
     }
 
     void Start()
@@ -178,8 +182,16 @@ public class UIManager : MonoBehaviour
 
     void OnDestroy()
     {
+        GameSettings.Changed -= ApplyHintSetting;
+
         if (ResearchManager.Instance != null)
             ResearchManager.Instance.OnTechCompleted -= OnTechCompleted;
+    }
+
+    /// <summary>Shows or hides the bottom controls hint according to the player's settings.</summary>
+    private void ApplyHintSetting()
+    {
+        if (hintText != null) hintText.gameObject.SetActive(GameSettings.ShowHints);
     }
 
     void Update()

@@ -7,16 +7,13 @@ using UnityEngine.SceneManagement;
 /// Captures / restores the game state and runs autosave.
 /// Created automatically by GameBootstrap (or add it to the scene yourself).
 /// Buildings and items are saved by their ID (B01, I01, ...), see GameDefinition.
+/// Autosave on/off and the interval come from GameSettings (Settings window).
 /// </summary>
 public class SaveManager : MonoBehaviour
 {
     public static SaveManager Instance { get; private set; }
 
-    [Tooltip("Write the Autosave slot on a timer.")]
-    public bool autosaveEnabled = true;
-    [Min(10f), Tooltip("Seconds of play time between autosaves.")]
-    public float autosaveIntervalSeconds = 120f;
-    [Tooltip("Also autosave when the application closes.")]
+    [Tooltip("Also autosave when the application closes (only if autosave is enabled in Settings).")]
     public bool autosaveOnQuit = true;
 
     public float PlayTime { get; private set; }
@@ -48,14 +45,14 @@ public class SaveManager : MonoBehaviour
         if (!ready) return;
         PlayTime += Time.deltaTime; // stops while paused (timeScale 0)
 
-        if (!autosaveEnabled) return;
+        if (!GameSettings.AutosaveEnabled) return;
         autosaveTimer += Time.deltaTime;
-        if (autosaveTimer >= autosaveIntervalSeconds) Autosave(true);
+        if (autosaveTimer >= GameSettings.AutosaveInterval) Autosave(true);
     }
 
     void OnApplicationQuit()
     {
-        if (ready && autosaveOnQuit) Autosave(false);
+        if (ready && autosaveOnQuit && GameSettings.AutosaveEnabled) Autosave(false);
     }
 
     // ---------------------------------------------------------------
